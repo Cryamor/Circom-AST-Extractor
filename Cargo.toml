@@ -1,0 +1,11 @@
+[package]
+name = "Circom-AST-Extractor"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "lib"
+path = "src/lib/mod.rs"
+
+[dependencies]
+regex = "1.11.1"

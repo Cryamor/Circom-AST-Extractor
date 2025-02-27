@@ -1,0 +1,38 @@
+# 忽略目标文件夹（编译输出）
+/target/
+
+# 忽略 Cargo.lock 文件
+Cargo.lock
+
+# 忽略 Rust 编译器生成的文件
+*.rs.bk
+
+# 忽略调试文件
+*.dSYM/
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
+
+# 忽略编辑器生成的文件（如 VS Code）
+.vscode/
+*.vsix
+
+# 忽略 IDE 自动生成的文件（如 IntelliJ IDEA）
+.idea/
+*.iml
+
+# 忽略临时文件
+*.tmp
+*.swp
+*.swo
+
+# 忽略测试生成的文件
+test-results/
+coverage/
+
+# 忽略本地配置文件
+config.toml
+
+# 忽略文档生成的文件
+doc/
