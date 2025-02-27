@@ -1,21 +1,12 @@
 use regex::Regex;
-use std::collections::HashMap;
-use std::fmt::Debug;
-
-#[derive(Debug, PartialEq)]
-pub struct Token {
-    token_type: String,
-    value: String,
-    line: usize,
-    column: usize,
-}
+use crate::lexer::token::{Token, RULES};
 
 pub struct Lexer {
     code: String,
     pub tokens: Vec<Token>,
     current_line: usize,
     current_column: usize,
-    token_specification: HashMap<String, String>,
+    token_specification: Vec<(String, String)>,
 }
 
 impl Lexer {
@@ -25,52 +16,12 @@ impl Lexer {
             tokens: Vec::new(),
             current_line: 1,
             current_column: 1,
-            token_specification: HashMap::new(),
+            token_specification: Vec::new(),
         };
 
-        // 定义词法规则的集合
-        let rules = vec![
-            ("PROGRAM", r"PROGRAM"),
-            ("BEGIN", r"BEGIN"),
-            ("END", r"END"),
-            ("CONST", r"CONST"),
-            ("VAR", r"VAR"),
-            ("WHILE", r"WHILE"),
-            ("DO", r"DO"),
-            ("IF", r"IF"),
-            ("THEN", r"THEN"),
-            ("num", r"\d+"),
-            ("id", r"[a-z][a-z0-9_]*"),
-            ("ASSIGN", r":="),
-            ("NE", r"<>"),
-            ("LE", r"<="),
-            ("GE", r">="),
-            ("EQ", r"="),
-            ("GR", r">"),
-            ("LS", r"<"),
-            ("ADD", r"\+"),
-            ("SUB", r"-"),
-            ("MUL", r"\*"),
-            ("DIV", r"/"),
-            ("LBRACKET", r"\("),
-            ("RBRACKET", r"\)"),
-            ("SEMICOLON", r";"),
-            ("COMMA", r","),
-            ("NEWLINE", r"\n"),
-            ("SKIP", r"[ \t]+"),
-            // ("MISMATCH", r"."),
-        ];
-
-        let rules2 = vec![
-            ("PRAGMA", r"pragma"),
-            ("CIRCOM", r"circom"),
-            ("TEMPLATE", r"template"),
-
-        ];
-
         // 循环插入规则到 HashMap
-        for (token_type, pattern) in rules {
-            lexer.token_specification.insert(token_type.to_string(), pattern.to_string());
+        for (token_type, pattern) in RULES {
+            lexer.token_specification.push((token_type.to_string(), pattern.to_string()));
         }
 
         // println!("{:?}", lexer.token_specification);
