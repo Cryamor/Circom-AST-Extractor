@@ -15,6 +15,9 @@ pub fn read_circom_file(file_path: &str) -> io::Result<String> {
     let cleaned_content = content
         .replace("\t", "");
 
+    let cleaned_content = remove_line_comments(cleaned_content);
+    let cleaned_content = remove_block_comments(cleaned_content);
+
     Ok(cleaned_content)
 }
 
@@ -35,6 +38,48 @@ pub fn read_circom_file_rm_newline(file_path: &str) -> io::Result<String> {
         .replace("\t", "");
 
     Ok(cleaned_content)
+}
+
+/// 移除 // 后的本行内容（保留换行符）
+fn remove_line_comments(content: String) -> String {
+    content
+        .lines()
+        .map(|line| {
+            if let Some(pos) = line.find("//") {
+                &line[0..pos]
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<&str>>()
+        .join("\n")
+}
+
+/// 移除 /* */ 包裹的内容，但保留换行符
+fn remove_block_comments(content: String) -> String {
+    let mut result = String::new();
+    let mut in_comment = false;
+
+    let mut chars = content.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '/' && chars.peek() == Some(&'*') {
+            // 进入块注释
+            in_comment = true;
+            chars.next(); // 跳过 '*' 字符
+        } else if c == '*' && chars.peek() == Some(&'/') {
+            // 退出块注释
+            in_comment = false;
+            chars.next(); // 跳过 '/' 字符
+        } else if !in_comment {
+            // 不在注释中，将字符添加到结果中
+            result.push(c);
+        } else if c == '\n' {
+            // 在注释中，但保留换行符
+            result.push(c);
+        }
+    }
+
+    result
 }
 
 // pub fn read_multi_circom_file(file_path: &str) -> io::Result<Vec<String>> {
