@@ -19,7 +19,7 @@ Thumbs.db
 *.vsix
 
 # 忽略 IDE 自动生成的文件（如 IntelliJ IDEA）
-.idea/
+/.idea/
 *.iml
 
 # 忽略临时文件
