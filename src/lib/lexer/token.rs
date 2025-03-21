@@ -6,6 +6,8 @@ pub struct Token {
     pub value: String,
     pub line: usize,
     pub column: usize,
+    pub start: usize,
+    pub end: usize,
 }
 pub const RULES: &[(&str, &str)] = &[
     // 关键字
@@ -31,6 +33,7 @@ pub const RULES: &[(&str, &str)] = &[
     ("PARALLEL", r"\bparallel\b"),
     ("BUS", r"\bbus\b"),
     ("CUSTOM_TEMPLATES", r"\bcustom_templates\b"),
+    ("MAIN", r"\bmain\b"),
 
     // 运算符
     ("INCREMENT", r"\+\+"),        // 自增 ++
@@ -41,6 +44,13 @@ pub const RULES: &[(&str, &str)] = &[
     ("DIVIDE_ASSIGN", r"/="),      // 除等于 /=
     ("MODULUS_ASSIGN", r"%="),     // 取模等于 %=
     ("QUOTIENT_ASSIGN", r"\\="),   // 取商等于 \=
+    ("BITWISE_AND_ASSIGN", r"&="),         // 位与等于 &=
+    ("BITWISE_OR_ASSIGN", r"\|="),         // 位或等于 |=
+    ("BITWISE_XOR_ASSIGN", r"\^="),        // 位异或等于 ^=
+    ("BITWISE_NOT_ASSIGN", r"~="),         // 位非等于 ~=
+    ("LEFT_SHIFT_ASSIGN", r"<<="),         // 左移等于 <<=
+    ("RIGHT_SHIFT_ASSIGN", r">>="),        // 右移等于 >>=
+
     ("PLUS", r"\+"),               // 加号 +
     ("MINUS", r"-"),               // 减号 -
     ("MULTIPLY", r"\*"),           // 乘号 *

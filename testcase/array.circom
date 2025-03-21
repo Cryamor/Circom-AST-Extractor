@@ -1,12 +1,12 @@
 pragma circom 2.0.0;
 
-template Powers(n) { // i am content
+template Powers(n) { // i am comment
     signal input a;
     signal output powers[n];
     /*
     i
     // am
-    content
+    comment
     */
     powers[0] <== a;
     for (var i = 1; i < n; i++) {

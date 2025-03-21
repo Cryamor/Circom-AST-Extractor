@@ -1,3 +1,4 @@
+
 use regex::Regex;
 use crate::lexer::token::{Token, RULES};
 
@@ -29,7 +30,7 @@ impl Lexer {
         lexer
     }
 
-    fn generate_token(&mut self, token_type: &str, value: &str) {
+    fn generate_token(&mut self, token_type: &str, value: &str, pos: usize) {
         if token_type == "NEWLINE" {
             self.current_line += 1;
             self.current_column = 0;
@@ -39,6 +40,8 @@ impl Lexer {
                 value: value.to_string(),
                 line: self.current_line,
                 column: self.current_column,
+                start: pos,
+                end: pos + value.len(),
             };
             self.tokens.push(token);
         }
@@ -68,7 +71,7 @@ impl Lexer {
                             .unwrap_or_else(|| "UNKNOWN"); // 如果没有名称，使用默认值 "UNKNOWN"
 
                         let value = m.as_str();
-                        self.generate_token(token_type, value);
+                        self.generate_token(token_type, value, pos);
                         pos += value.len();
                         break;
                     }
