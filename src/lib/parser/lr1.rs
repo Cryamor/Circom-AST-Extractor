@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use log::{info, log};
+use std::option::Option;
 use crate::lexer::token::Token;
 use crate::parser::grammar::{Grammar, GrammarError};
 
@@ -34,7 +35,14 @@ pub struct LR1Parser {
     items: Vec<HashSet<LR1Item>>,
     action_table: HashMap<usize, HashMap<String, Action>>,
     goto_table: HashMap<usize, HashMap<String, usize>>,
-    productions: Vec<(String, Vec<String>)>,
+    productions: Vec<(String, Vec<String>)>,  // 索引化产生式
+}
+
+#[derive(Debug)]
+pub struct ReduceResult {
+    head: String,
+    body: Vec<String>,
+    token: Option<Token>,
 }
 
 // 错误处理
@@ -449,7 +457,7 @@ impl LR1Parser {
                 s += ")\n";
             }
         }
-        s += "Goto table:\n";
+        s += "\nGoto table:\n";
         let mut keys: Vec<_> = goto_table.keys().cloned().collect();
         keys.sort();  // 将外层 HashMap 的键提取出来并排序
         for key in keys {
@@ -472,7 +480,7 @@ impl LR1Parser {
     }
 
     // 执行语法分析
-    pub fn parse1(&self, tokens: &[Token]) -> Result<Vec<String>, ParseError> {
+    pub fn run_parse(&self, tokens: &[Token]) -> Result<Vec<ReduceResult>, ParseError> {
         let mut input = tokens.to_vec();
         input.push(Token { // 添加结束标记
             token_type: "#".to_string(),
@@ -484,39 +492,77 @@ impl LR1Parser {
         });
 
         let mut state_stack = vec![0];
-        let mut value_stack = vec![];
+        let mut value_list: Vec<Token> = vec![];  // 记录产生式中的值(如ID=x，NUM=1)
+        let mut symbol_stack = vec![];
         let mut index = 0;
-        let mut results = vec![];
+        let mut results: Vec<ReduceResult> = vec![];
+
+        for t in tokens {
+            if t.token_type == "NUM" || t.token_type == "ID" {
+                value_list.push(t.clone());
+            }
+        }
+        value_list.reverse();
 
         loop {
             let state = *state_stack.last().ok_or(ParseError::UnexpectedEnd)?;
             let token = input.get(index).ok_or(ParseError::UnexpectedEnd)?;
 
             let current_symbol = match token.token_type.as_str() {
-                "id" => "ID",
-                "num" => "NUM",
+                "SEMICOLON" => ";", "INCREMENT" => "++", "DECREMENT" => "--", "PLUS_ASSIGN" => "+=", "MINUS_ASSIGN" => "-=",
+                "MULTIPLY_ASSIGN" => "*=", "DIVIDE_ASSIGN" => "/=", "MODULUS_ASSIGN" => "%=", "BITWISE_AND_ASSIGN" => "&=",
+                "BITWISE_XOR_ASSIGN" => "^=", "BITWISE_NOT_ASSIGN" => "~=", "LEFT_SHIFT_ASSIGN" => "<<=", "RIGHT_SHIFT_ASSIGN" => ">>=",
+                "PLUS" => "+", "MINUS" => "-", "MULTIPLY" => "*", "DIVIDE" => "/", "MODULUS" => "%", "LOGICAL_AND" => "&&",
+                "BITWISE_AND" => "&", "BITWISE_XOR" => "^", "BITWISE_NOT" => "~", "LEFT_SHIFT" => "<<", "RIGHT_SHIFT" => ">>",
+                "CIRCOM_L_ASSIGN" => "<--", "CIRCOM_R_ASSIGN" => "-->", "CIRCOM_L_CONSTRAINT_ASSIGN" => "<==", "CIRCOM_R_CONSTRAINT_ASSIGN" => "==>",
+                "CIRCOM_CONSTRAINT" => "===", "EQUAL" => "==", "NOT_EQUAL" => "!=", "LESS_THAN_OR_EQUAL" => "<=", "GREATER_THAN_OR_EQUAL" => ">=",
+                "LESS_THAN" => "<", "GREATER_THAN" => ">", "ASSIGN" => "=", "LOGICAL_NOT" => "!",
+                "LPAREN" => "(", "RPAREN" => ")", "LBRACKET" => "[", "RBRACKET" => "]", "COMMA" => ",",
+                "LBRACE" => "{", "RBRACE" => "}", "COLON" => ":", "QUESTION_MARK" => "?",
+
                 t => t,
             };
+
+            info!("{}", format!("States:{:?} Symbols:{:?} Current:{} Action: {:?}",
+                state_stack, symbol_stack, current_symbol, self.action_table.get(&state).unwrap().get(current_symbol).unwrap()).as_str());
 
             match self.action_table.get(&state)
                 .and_then(|actions| actions.get(current_symbol))
             {
                 Some(Action::Shift(next_state)) => {
-                    // 保存语义值
-                    if ["ID", "NUM"].contains(&current_symbol) {
-                        value_stack.push(token.value.clone());
-                    }
-
+                    info!("{}", format!("Shift {}", next_state).as_str());
                     state_stack.push(*next_state);
+                    symbol_stack.push(token.token_type.clone());
                     index += 1;
                 }
 
                 Some(Action::Reduce(prod_index)) => {
                     let (head, body) = &self.productions[*prod_index];
 
-                    // 弹出2n个元素
-                    for _ in 0..body.len() {
-                        state_stack.pop();
+                    info!("{}", format!("Reduce {} -> {}", head, body.join(" ")).as_str());
+
+                    if body.contains(&"NUM".to_string()) || body.contains(&"ID".to_string()) {
+                        let val = value_list.pop();
+                        results.push(ReduceResult{
+                            head: head.clone(),
+                            body: body.clone(),
+                            token: val.clone(),
+                        });
+                    }
+                    else {
+                        results.push(ReduceResult{
+                            head: head.clone(),
+                            body: body.clone(),
+                            token: None,
+                        });
+                    }
+
+                    // 弹出栈顶len(body)个元素
+                    if !body.contains(&"NULL".to_string()) {
+                        for _ in 0..body.len() {
+                            state_stack.pop();
+                            symbol_stack.pop();
+                        }
                     }
 
                     // 获取新状态
@@ -530,9 +576,8 @@ impl LR1Parser {
                         })?;
 
                     state_stack.push(goto_state);
+                    symbol_stack.push(head.clone());
 
-                    // 记录归约结果
-                    results.push(format!("{} → {}", head, body.join(" ")));
                 }
 
                 Some(Action::Accept) => break,

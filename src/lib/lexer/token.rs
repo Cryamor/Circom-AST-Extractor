@@ -9,6 +9,12 @@ pub struct Token {
     pub start: usize,
     pub end: usize,
 }
+impl Token {
+    pub fn new(token_type: String, value: String, line: usize, column: usize, start: usize, end: usize) -> Token {
+        Token{token_type, value, line, column, start, end }
+    }
+}
+
 pub const RULES: &[(&str, &str)] = &[
     // 关键字
     ("PRAGMA", r"\bpragma\b"),
