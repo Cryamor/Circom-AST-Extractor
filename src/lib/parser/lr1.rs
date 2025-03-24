@@ -42,6 +42,12 @@ pub struct LR1Parser {
 pub struct ReduceResult {
     head: String,
     body: Vec<String>,
+    token: Vec<Token>,
+}
+
+#[derive(Debug)]
+pub struct ReduceSymbol {
+    symbol: String,
     token: Option<Token>,
 }
 
@@ -492,17 +498,10 @@ impl LR1Parser {
         });
 
         let mut state_stack = vec![0];
-        let mut value_list: Vec<Token> = vec![];  // 记录产生式中的值(如ID=x，NUM=1)
-        let mut symbol_stack = vec![];
+        let mut symbol_stack: Vec<ReduceSymbol> = vec![];
         let mut index = 0;
         let mut results: Vec<ReduceResult> = vec![];
 
-        for t in tokens {
-            if t.token_type == "NUM" || t.token_type == "ID" || t.token_type == "VERSION" {
-                value_list.push(t.clone());
-            }
-        }
-        value_list.reverse();
 
         loop {
             let state = *state_stack.last().ok_or(ParseError::UnexpectedEnd)?;
@@ -532,7 +531,11 @@ impl LR1Parser {
                 Some(Action::Shift(next_state)) => {
                     info!("{}", format!("Shift {}", next_state).as_str());
                     state_stack.push(*next_state);
-                    symbol_stack.push(token.token_type.clone());
+                    // symbol_stack.push(token.token_type.clone());
+                    symbol_stack.push(ReduceSymbol{
+                        symbol: token.clone().token_type,
+                        token: Option::from(token.clone()),
+                    });
                     index += 1;
                 }
 
@@ -541,29 +544,24 @@ impl LR1Parser {
 
                     info!("{}", format!("Reduce {} -> {}", head, body.join(" ")).as_str());
 
-                    if body.contains(&"NUM".to_string()) || body.contains(&"ID".to_string()) || body.contains(&"VERSION".to_string()) {
-                        let val = value_list.pop();
-                        results.push(ReduceResult{
-                            head: head.clone(),
-                            body: body.clone(),
-                            token: val.clone(),
-                        });
-                    }
-                    else {
-                        results.push(ReduceResult{
-                            head: head.clone(),
-                            body: body.clone(),
-                            token: None,
-                        });
-                    }
+                    let mut rr = ReduceResult{
+                        head: head.clone(),
+                        body: body.clone(),
+                        token: vec![],
+                    };
 
                     // 弹出栈顶len(body)个元素
                     if !body.contains(&"NULL".to_string()) {
                         for _ in 0..body.len() {
                             state_stack.pop();
-                            symbol_stack.pop();
+                            let s = symbol_stack.pop();
+                            let t = s.unwrap().token;
+                            if t.is_some() {
+                                rr.token.push(t.unwrap().clone());
+                            }
                         }
                     }
+                    results.push(rr);
 
                     // 获取新状态
                     let new_state = *state_stack.last().unwrap();
@@ -576,7 +574,10 @@ impl LR1Parser {
                         })?;
 
                     state_stack.push(goto_state);
-                    symbol_stack.push(head.clone());
+                    symbol_stack.push(ReduceSymbol{
+                        symbol: head.clone(),
+                        token: None,
+                    });
 
                 }
 
