@@ -1,6 +1,9 @@
 # 忽略目标文件夹（编译输出）
 /target/
 
+# 忽略日志文件
+*.log
+
 # 忽略 Cargo.lock 文件
 Cargo.lock
 
