@@ -498,7 +498,7 @@ impl LR1Parser {
         let mut results: Vec<ReduceResult> = vec![];
 
         for t in tokens {
-            if t.token_type == "NUM" || t.token_type == "ID" {
+            if t.token_type == "NUM" || t.token_type == "ID" || t.token_type == "VERSION" {
                 value_list.push(t.clone());
             }
         }
@@ -541,7 +541,7 @@ impl LR1Parser {
 
                     info!("{}", format!("Reduce {} -> {}", head, body.join(" ")).as_str());
 
-                    if body.contains(&"NUM".to_string()) || body.contains(&"ID".to_string()) {
+                    if body.contains(&"NUM".to_string()) || body.contains(&"ID".to_string()) || body.contains(&"VERSION".to_string()) {
                         let val = value_list.pop();
                         results.push(ReduceResult{
                             head: head.clone(),
