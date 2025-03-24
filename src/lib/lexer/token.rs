@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub token_type: String,
     pub value: String,

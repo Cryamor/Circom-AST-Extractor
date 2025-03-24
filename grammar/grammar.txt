@@ -16,7 +16,7 @@ ID_OR_ARRAY -> ID | ID [ ID_OR_NUM ]
 ID_OR_NUM -> ID_OR_ARRAY | NUM
 
 COMPONENT_ID -> CI_ | NULL
-CI_ -> ID_OR_ARRAY . CI_ | NULL
+CI_ -> ID_OR_ARRAY DOT CI_ | NULL
 
 VAR_STMT -> VAR_ ; | NULL
 VAR_ -> VAR VAR_DEF | VAR_ , VAR_DEF
@@ -24,7 +24,7 @@ VAR_DEF -> ID VAR_ASSIGN
 VAR_ASSIGN -> = NUM | NULL
 
 ASSIGN_STMT -> ID_OR_ARRAY ASSIGN EXPR ;
-EXPR -> ( EXPR ) | PLUS EXPR | EXPR OP EXPR | ID_OR_NUM
+EXPR -> ( EXPR ) | PLUS NUM | EXPR OP ID_OR_NUM | ID_OR_NUM
 
 C_ASSIGN_STMT -> ID_OR_ARRAY C_ASSIGN EXPR ;
 
@@ -45,9 +45,9 @@ CONDITION -> EXPR REL EXPR
 
 COMPONENT_BLOCK ->  COMPONENT MAIN = ID ( PARAM ) ;
 
-ASSIGN -> = | += | -= | *= | /= | \= | %= ｜ &= ｜ BITWISE_OR_ASSIGN ｜ ^= ｜ ～= ｜ <<= | >>=
+ASSIGN -> = | += | -= | *= | /= | QUOTIENT_ASSIGN | %= | &= | BITWISE_OR_ASSIGN | ^= | ~= | <<= | >>=
 C_ASSIGN -> === | <-- | --> | <== | ==>
 REL -> == | < | <= | > | >= | !=
 
 PLUS -> + | -
-OP -> PLUS | * | \ | / | % | & | BITWISE_OR | ~ | ^ | << | >>
+OP -> PLUS | * | QUOTIENT | / | % | & | BITWISE_OR | ~ | ^ | << | >>

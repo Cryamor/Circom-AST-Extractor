@@ -4,11 +4,12 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct Grammar {
-    productions: HashMap<String, Vec<Vec<String>>>,
-    terminals: HashSet<String>,
-    nonterminals: HashSet<String>,
-    start_symbol: String,
-    symbols: HashSet<String>,
+    pub productions: HashMap<String, Vec<Vec<String>>>,
+    pub terminals: HashSet<String>,
+    pub nonterminals: HashSet<String>,
+    pub start_symbol: String,
+    pub symbols: HashSet<String>,
+    pub grammar_str : String,
 }
 
 #[derive(Debug)]
@@ -97,7 +98,22 @@ impl Grammar {
             nonterminals,
             start_symbol,
             symbols,
+            grammar_str: grammar_str.to_string(),
         })
+    }
+}
+
+impl fmt::Display for Grammar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "\nProductions: \n{:?}", self.productions)?;
+        writeln!(f, "Terminals: \n{:?}", self.terminals)?;
+        writeln!(f, "Non-terminals: \n{:?}", self.nonterminals)?;
+        writeln!(f, "Start Symbol: {}", self.start_symbol);
+        writeln!(f, "Count: {} {} {} {}",
+            self.productions.len(),
+            self.terminals.len(),
+            self.nonterminals.len(),
+            self.symbols.len())
     }
 }
 
@@ -125,12 +141,12 @@ fn build_token_dict() -> HashMap<&'static str, bool> {
         "MAIN", "SIGNAL", "INPUT", "OUTPUT", "VAR", "IF", "ELSE", "WHILE", "FOR",
 
         // 运算符
-        "=", "+=", "-=", "*=", "/=", "\\=", "%=", "&=", "|=", "^=", "~=", "<<=", ">>=",
+        "=", "+=", "-=", "*=", "/=", "QUOTIENT_ASSIGN", "%=", "&=", "BITWISE_OR_ASSIGN", "^=", "~=", "<<=", ">>=",
         "===", "<--", "-->", "<==", "==>", "==", "<", "<=", ">", ">=", "!=",
-        "+", "-", "*", "\\", "/", "%", "&", "|", "~", "^", "<<", ">>",
+        "+", "-", "*", "QUOTIENT", "/", "%", "&", "BITWISE_OR", "~", "^", "<<", ">>",
 
         // 符号
-        ";", ",", "(", ")", "{", "}", "[", "]", ".",
+        ";", ",", "(", ")", "{", "}", "[", "]", "DOT",
 
         // 字面量
         "ID", "NUM", "NULL"
