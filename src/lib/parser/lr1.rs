@@ -40,9 +40,9 @@ pub struct LR1Parser {
 
 #[derive(Debug)]
 pub struct ReduceResult {
-    head: String,
-    body: Vec<String>,
-    token: Vec<Token>,
+    pub head: String,
+    pub body: Vec<String>,
+    pub token: Vec<Token>,
 }
 
 #[derive(Debug)]
@@ -103,7 +103,7 @@ impl LR1Parser {
         let (first, follow) = Self::compute_first_and_follow(&augmented_grammar);
         info!("{}", Self::print_first_and_follow(&first, &follow));
 
-        // 构建项目集
+        // 构建项目集规范族
         let items = Self::build_items(&augmented_grammar, &first);
 
         // 构建分析表

@@ -1,0 +1,301 @@
+use std::ops::Range;
+use crate::ast::ast::*;
+use crate::ast::ast::Definition::Template;
+use crate::ast::ast::Expression::{Call, InfixOp, Number, Variable};
+use crate::ast::ast::Statement::{Block, Substitution};
+use crate::lexer::token::Token;
+use crate::parser::lr1::ReduceResult;
+
+fn process_version(version: &str) -> Version {
+    let parts: Vec<&str> = version.split('.').collect();
+    let p1 = parts[0].parse::<usize>().unwrap();
+    let p2 = parts[1].parse::<usize>().unwrap();
+    let p3 = parts[2].parse::<usize>().unwrap();
+
+    (p1, p2, p3)
+}
+
+fn process_signal_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, block_stack: &mut Vec<Statement>) {
+    let start = r.token.iter().find(|t| t.token_type == "SIGNAL").map(|t| &t.start).unwrap();
+    let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
+    let meta = Meta::new(start.clone(), end.clone());
+
+    let mut xtype: VariableType;
+    if r.body.contains(&"INPUT".to_string()) {
+        xtype = VariableType::Signal(SignalType::Input, vec![]);
+    }
+    else {
+        xtype = VariableType::Signal(SignalType::Output, vec![]);
+    }
+
+    let id = id_stack.pop().unwrap();
+
+    // "Declaration"
+    let dec = Statement::Declaration {
+        meta: meta.clone(),
+        xtype: xtype.clone(),
+        name: id.value.clone(),
+        dimensions: vec![],
+        is_constant: true,
+    };
+
+    // "InitializationBlock"
+    let i_b = Statement::InitializationBlock {
+        meta: meta.clone(),
+        xtype: xtype.clone(),
+        initializations: vec![dec],
+    };
+
+    block_stack.push(i_b);
+}
+
+fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, stmt_counter: &mut usize) -> Definition {
+    let start = r.token.iter().find(|t| t.token_type == "TEMPLATE").map(|t| &t.start).unwrap();
+    let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
+    let arg = r.token.iter().find(|t| t.token_type == "LBRACE").map(|t| &t.end).unwrap();
+    let meta = Meta::new(start.clone(), end.clone());
+    let meta1 = Meta::new(arg.clone(), end.clone());
+
+    let id = r.token.iter().find(|t| t.token_type == "ID").map(|t| &t.value).unwrap();
+
+    let mut block_stmts = vec![];
+    for _ in 0..*stmt_counter {
+        block_stmts.push(block_stack.pop().unwrap());
+    }
+    *stmt_counter = 0;
+
+    let mut block: Statement = Block {
+        meta: meta1.clone(),
+        stmts: block_stmts.clone(),
+    };
+
+    let mut temp: Definition = Template {
+        meta: meta.clone(),
+        name: id.to_string(),
+        args: vec![],
+        arg_location: *arg..*arg,
+        body: block.clone(),
+        parallel: false,
+        is_custom_gate: false,
+    };
+
+    temp
+}
+
+fn process_component_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, last: &mut usize) -> MainComponent {
+    let start = r.token.iter().find(|t| t.token_type == "COMPONENT").map(|t| &t.start).unwrap();
+    let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
+    let meta = Meta::new(start.clone(), end.clone());
+    *last = *end;
+    let id = r.token.iter().find(|t| t.token_type == "ID").map(|t| &t.value).unwrap();
+
+    let mut ex: Expression = Call {
+        meta: meta.clone(),
+        id: id.clone(),
+        args: vec![],
+    };
+
+    let mut mc:MainComponent = (vec![], ex.clone());
+
+    mc
+}
+
+fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, op_stack: &mut Vec<Token>) {
+    if r.body.len() == 1 {
+        // EXPR -> ID_OR_NUM
+        let i = id_stack.pop().unwrap();
+        match i.token_type.as_str() {
+            "ID" => {
+                let ex: Expression = Variable {
+                    meta: Meta::new(i.start.clone(), i.end.clone()),
+                    name: i.value.clone(),
+                    access: vec![],
+                };
+                expr_stack.push(ex);
+            },
+            "NUM" => {
+                let ex: Expression = Number(Meta::new(i.start.clone(), i.end.clone()), i.value.clone().parse::<i128>().unwrap());
+                expr_stack.push(ex);
+            },
+            _ => {}
+        }
+    }
+    else if r.body.contains(&"OP".to_string()) {
+        // EXPR -> EXPR OP ID_OR_NUM
+        let i = id_stack.pop().unwrap();
+        let mut lhe = expr_stack.pop().unwrap();
+        let mut rhe: Expression;
+        match i.token_type.as_str() {
+            "ID" => {
+                rhe = Variable {
+                    meta: Meta::new(i.start.clone(), i.end.clone()),
+                    name: i.value.clone(),
+                    access: vec![],
+                }
+            }
+            "NUM" => {
+                rhe = Number(Meta::new(i.start.clone(), i.end.clone()), i.value.clone().parse::<i128>().unwrap());
+            }
+            _ => {}
+        }
+
+        let op = op_stack.pop().unwrap();
+        let mut meta = Meta::new(op.start.clone(), op.end.clone());
+        let mut eio: ExpressionInfixOpcode;
+        let is_infix: bool = true;
+        match op.value.as_str() {
+            "*" => eio = ExpressionInfixOpcode::Mul,
+            "+" => eio = ExpressionInfixOpcode::Add,
+            "-" => eio = ExpressionInfixOpcode::Sub,
+            "/" => eio = ExpressionInfixOpcode::Div,
+            "%" => eio = ExpressionInfixOpcode::Mod,
+            "QUOTIENT" => eio = ExpressionInfixOpcode::IntDiv,
+            "\\" => eio = ExpressionInfixOpcode::IntDiv,
+            "&" => eio = ExpressionInfixOpcode::BoolAnd,
+            "|" => eio = ExpressionInfixOpcode::BoolOr,
+            "BITWISE_OR" => eio = ExpressionInfixOpcode::BoolOr,
+            "^" => eio = ExpressionInfixOpcode::BitXor,
+            "<<" => eio = ExpressionInfixOpcode::ShiftL,
+            ">>" => eio = ExpressionInfixOpcode::ShiftR,
+            _ => {}
+        }
+
+        if is_infix {
+            let mut infixop : Expression = InfixOp {
+                meta: meta.clone(),
+                lhe: Box::new(lhe.clone()),
+                infix_op: eio.clone(),
+                rhe: Box::new(rhe.clone()),
+            };
+            expr_stack.push(infixop);
+        }
+    }
+    else if r.body.contains(&"PLUS".to_string()) {
+        // EXPR -> PLUS NUM
+    }
+    else {
+        // EXPR -> ( EXPR )
+    }
+
+}
+
+fn process_c_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, block_stack: &mut Vec<Statement>, op_stack: &mut Vec<Token>) {
+    let mut end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap().clone();
+    let i = id_stack.pop().unwrap();
+    let mut start = i.start.clone();
+    let mut meta = Meta::new(start, end);
+
+    let ex = expr_stack.pop().unwrap();
+
+    let op = op_stack.pop().unwrap();
+    let mut aop: AssignOp;
+    match op.value.as_str() {
+        "===" => aop = AssignOp::AssignConstraintSignal,
+        "<==" => aop = AssignOp::AssignConstraintSignal,
+        "==>" => aop = AssignOp::AssignConstraintSignal,
+        "<--" => aop = AssignOp::AssignSignal,
+        "-->" => aop = AssignOp::AssignSignal,
+        _ => {}
+    }
+
+    let substitution: Statement = Substitution {
+        meta: meta.clone(),
+        var: i.value.clone(),
+        access: vec![],
+        op: aop.clone(),
+        rhe: ex.clone(),
+    };
+
+    block_stack.push(substitution);
+}
+
+pub fn build_ast(results: Vec<ReduceResult>) -> AST {
+
+    let mut compiler_version: Version = (0, 0, 0);
+    let mut definitions: Vec<Definition> = vec![];
+    let mut main_component: Option<MainComponent> = Option::None;
+
+    let mut last: usize = 256;
+
+    let mut id_stack: Vec<Token> = vec![];
+    let mut op_stack: Vec<Token> = vec![];
+    let mut expr_stack: Vec<Expression> = vec![];
+    let mut block_stack: Vec<Statement> = vec![];
+    let mut stmt_counter: usize = 0;
+
+    for r in results {
+        match r.head.clone().as_str() {
+            "HEADER" => {
+                if r.body.contains("VERSION".as_Str()) {
+                    let v_str = r.token.iter().find(|t| t.token_type == "VERSION")
+                        .map(|t| &t.value).unwrap();
+                    compiler_version = process_version(v_str);
+                }
+            },
+            "ID_OR_ARRAY" => {
+                let mut t = r.token.iter().find(|t| t.token_type == "ID").unwrap();
+                id_stack.push(t.clone());
+            },
+            "SIGNAL_STMT" => {
+                process_signal_stmt(&r, &mut id_stack, &mut block_stack);
+            },
+            "C_ASSIGN" => {
+                let mut o = r.token[0].clone();
+                op_stack.push(o.clone());
+            },
+            "OP" => {
+                if !r.body.contains("PLUS") {
+                    let mut o = r.token[0].clone();
+                    op_stack.push(o.clone());
+                }
+            },
+            "PLUS" => {
+                let mut o = r.token[0].clone();
+                op_stack.push(o.clone());
+            },
+            "EXPR" => {
+                process_expr(&r, &mut id_stack, &mut expr_stack, &mut op_stack);
+            },
+            "C_ASSIGN_STMT" => {
+                process_c_assign_stmt(&r, &mut id_stack, &mut expr_stack, &mut block_stack, &mut op_stack);
+            },
+            "STMTS" => {
+              stmt_counter = stmt_counter + 1;
+            },
+            "TEMPLATE_CONTENT" => {},
+            "TEMPLATE_STMT" => {
+                definitions.push(process_template_block(&r, &mut block_stack, &mut block_stack));
+            },
+            "COMPONENT_BLOCK" => {
+                main_component = Some(process_component_block(&r, &mut block_stack, &mut last));
+            },
+            "PROGRAM" => break,
+            _ => {},
+        }
+    }
+
+    let mut meta = Meta::new(0, last);
+    let mut pragmas: Vec<Pragma> = vec![];
+    pragmas.push(Pragma::Version(meta.clone(), 0..1, compiler_version));
+
+    let mut ast: AST = AST::new(
+        meta.clone(),
+        pragmas.clone(),
+        vec![],
+        definitions.clone(),
+        main_component.clone(),
+    );
+
+    ast
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_version() {
+        assert_eq!(process_version("2.0.0"), (2, 0, 0));
+    }
+
+}
