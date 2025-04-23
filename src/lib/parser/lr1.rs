@@ -38,7 +38,7 @@ pub struct LR1Parser {
     productions: Vec<(String, Vec<String>)>,  // 索引化产生式
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReduceResult {
     pub head: String,
     pub body: Vec<String>,

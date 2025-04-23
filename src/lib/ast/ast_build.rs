@@ -64,6 +64,8 @@ fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, st
     }
     *stmt_counter = 0;
 
+    block_stmts.reverse();
+
     let mut block: Statement = Block {
         meta: meta1.clone(),
         stmts: block_stmts.clone(),
@@ -136,7 +138,9 @@ fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Ve
             "NUM" => {
                 rhe = Number(Meta::new(i.start.clone(), i.end.clone()), i.value.clone().parse::<i128>().unwrap());
             }
-            _ => {}
+            _ => {
+                rhe = Number(Meta::new(i.start.clone(), i.end.clone()), -1);
+            }
         }
 
         let op = op_stack.pop().unwrap();
@@ -157,7 +161,7 @@ fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Ve
             "^" => eio = ExpressionInfixOpcode::BitXor,
             "<<" => eio = ExpressionInfixOpcode::ShiftL,
             ">>" => eio = ExpressionInfixOpcode::ShiftR,
-            _ => {}
+            _ => eio = ExpressionInfixOpcode::Add,
         }
 
         if is_infix {
@@ -195,7 +199,7 @@ fn process_c_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack
         "==>" => aop = AssignOp::AssignConstraintSignal,
         "<--" => aop = AssignOp::AssignSignal,
         "-->" => aop = AssignOp::AssignSignal,
-        _ => {}
+        _ => aop = AssignOp::AssignSignal,
     }
 
     let substitution: Statement = Substitution {
@@ -226,7 +230,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     for r in results {
         match r.head.clone().as_str() {
             "HEADER" => {
-                if r.body.contains("VERSION".as_Str()) {
+                if r.body.iter().any(|e| e == "VERSION") {
                     let v_str = r.token.iter().find(|t| t.token_type == "VERSION")
                         .map(|t| &t.value).unwrap();
                     compiler_version = process_version(v_str);
@@ -244,7 +248,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 op_stack.push(o.clone());
             },
             "OP" => {
-                if !r.body.contains("PLUS") {
+                if !r.body.iter().any(|e| e == "PLUS") {
                     let mut o = r.token[0].clone();
                     op_stack.push(o.clone());
                 }
@@ -264,7 +268,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             },
             "TEMPLATE_CONTENT" => {},
             "TEMPLATE_STMT" => {
-                definitions.push(process_template_block(&r, &mut block_stack, &mut block_stack));
+                definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counter));
             },
             "COMPONENT_BLOCK" => {
                 main_component = Some(process_component_block(&r, &mut block_stack, &mut last));
@@ -276,7 +280,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
 
     let mut meta = Meta::new(0, last);
     let mut pragmas: Vec<Pragma> = vec![];
-    pragmas.push(Pragma::Version(meta.clone(), 0..1, compiler_version));
+    pragmas.push(Pragma::Version(meta.clone(), 0, compiler_version));
 
     let mut ast: AST = AST::new(
         meta.clone(),
