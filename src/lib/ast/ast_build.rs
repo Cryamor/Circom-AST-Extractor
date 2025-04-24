@@ -248,6 +248,16 @@ fn process_c_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack
     block_stack.push(substitution);
 }
 
+fn process_cond(r: &ReduceResult, expr_stack: &mut Vec<Expression>, rel_stack: &mut Vec<Token>) {
+
+}
+
+fn process_if_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>) {
+
+}
+
+
+
 pub fn build_ast(results: Vec<ReduceResult>) -> AST {
 
     let mut compiler_version: Version = (0, 0, 0);
@@ -261,6 +271,10 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     let mut expr_stack: Vec<Expression> = vec![];  // Expression
     let mut block_stack: Vec<Statement> = vec![];  // Block
     let mut param_stack: Vec<Token> = vec![];  // Params for template and component
+    let mut rel_stack: Vec<Token> = vec![];  // relation operator eg. == >=
+    let mut cond_stack: Vec<Expression> = vec![]; // condition eg. 1==1
+    let mut assign_stack: Vec<Token> = vec![];  // assign operator eg. = +=
+
     let mut stmt_counter: usize = 0;
     let mut param_counter: usize = 0;
 
@@ -281,18 +295,25 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 process_signal_stmt(&r, &mut id_stack, &mut block_stack);
             },
             "C_ASSIGN" => {
-                let mut o = r.token[0].clone();
-                op_stack.push(o.clone());
+                let mut t = r.token[0].clone();
+                op_stack.push(t.clone());
             },
             "OP" => {
                 if !r.body.iter().any(|e| e == "PLUS") {
-                    let mut o = r.token[0].clone();
-                    op_stack.push(o.clone());
+                    let mut t = r.token[0].clone();
+                    op_stack.push(t.clone());
                 }
             },
             "PLUS" => {
-                let mut o = r.token[0].clone();
-                op_stack.push(o.clone());
+                let mut t = r.token[0].clone();
+                op_stack.push(t.clone());
+            },
+            "ASSIGN" => {
+                let mut t = r.token[0].clone();
+                assign_stack.push(t.clone());
+            },
+            "ASSIGN_STMT" => {
+
             },
             "EXPR" => {
                 process_expr(&r, &mut id_stack, &mut expr_stack, &mut op_stack);
@@ -301,6 +322,14 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 process_c_assign_stmt(&r, &mut id_stack, &mut expr_stack, &mut block_stack, &mut op_stack);
             },
             "STMTS" => {
+                if r.body.len() == 1 {
+                    // STMTS -> STMT 表示一个新的块
+
+
+                }
+                else {
+
+                }
               stmt_counter = stmt_counter + 1;
             },
             "TEMPLATE_CONTENT" => {},
@@ -319,9 +348,19 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
               }
             },
             "PARAM" => {
-                let mut o = id_stack.pop().unwrap();
-                param_stack.push(o.clone());
+                let mut t = id_stack.pop().unwrap();
+                param_stack.push(t.clone());
                 param_counter = param_counter + 1;
+            },
+            "IF_STMT" => {
+
+            },
+            "CONDITION" => {
+
+            },
+            "REL" => {
+                let mut t = r.token[0].clone();
+                rel_stack.push(t.clone());
             },
             _ => {},
         }
