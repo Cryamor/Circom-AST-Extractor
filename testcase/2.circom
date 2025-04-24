@@ -12,6 +12,10 @@ template Multiplier() {
     else {
         b += 3;
     }
+
+    if ( c == 1 ) {
+        c -= 1;
+    }
 }
 
 component main = Multiplier();
