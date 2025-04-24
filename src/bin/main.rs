@@ -5,6 +5,7 @@ use lib::parser::grammar::Grammar;
 use lib::parser::lr1::{LR1Parser, ParseError, ReduceResult};
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 use log::info;
 use lib::ast::ast_build::build_ast;
 
@@ -24,10 +25,12 @@ fn main() -> io::Result<()>{
     } else {
         "testcase/1.circom"
     };
+
     let out_path: &str = if args.len() > 2 {
         &*args[2].clone()
     } else {
-        "out/1.json"
+        let file_name = Path::new(file_path).file_stem().unwrap().to_str().unwrap();
+        &*format!("out/{}.json", file_name)
     };
 
 
