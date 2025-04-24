@@ -1,4 +1,4 @@
-use std::{io, mem};
+use std::{env, io, mem};
 use lib::input::input::*;
 use lib::lexer::lexer::Lexer;
 use lib::parser::grammar::Grammar;
@@ -13,9 +13,23 @@ fn main() -> io::Result<()>{
     log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
 
     // let file_path = "testcase/array.circom";
-    let file_path = "testcase/1.circom";
+    // let file_path = "testcase/1.circom";
     let grammar_path = "grammar/grammar.txt";
-    let out_path = "out/1.json";
+    // let out_path = "out/1.json";
+
+    // 获取命令行参数
+    let args: Vec<String> = env::args().collect();
+    let file_path: &str = if args.len() > 1 {
+        &*args[1].clone()
+    } else {
+        "testcase/1.circom"
+    };
+    let out_path: &str = if args.len() > 2 {
+        &*args[2].clone()
+    } else {
+        "out/1.json"
+    };
+
 
     let content = read_circom_file(file_path)?;
 

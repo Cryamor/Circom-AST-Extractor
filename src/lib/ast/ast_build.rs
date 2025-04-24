@@ -49,14 +49,23 @@ fn process_signal_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, block_stack:
     block_stack.push(i_b);
 }
 
-fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, stmt_counter: &mut usize) -> Definition {
+fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, stmt_counter: &mut usize, param_stack: &mut Vec<Token>, param_counter: &mut usize) -> Definition {
     let start = r.token.iter().find(|t| t.token_type == "TEMPLATE").map(|t| &t.start).unwrap();
     let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
     let arg = r.token.iter().find(|t| t.token_type == "LBRACE").map(|t| &t.end).unwrap();
     let meta = Meta::new(start.clone(), end.clone());
     let meta1 = Meta::new(arg.clone(), end.clone());
+    let mut args: Vec<String> = vec![];
 
     let id = r.token.iter().find(|t| t.token_type == "ID").map(|t| &t.value).unwrap();
+
+    if r.body.contains(&"PARAM".to_string()) {
+        for _ in 0..*param_counter {
+            let p = param_stack.pop().unwrap();
+            args.push(p.value.clone());
+        }
+        *param_counter = 0;
+    }
 
     let mut block_stmts = vec![];
     for _ in 0..*stmt_counter {
@@ -65,6 +74,7 @@ fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, st
     *stmt_counter = 0;
 
     block_stmts.reverse();
+    args.reverse();
 
     let mut block: Statement = Block {
         meta: meta1.clone(),
@@ -74,7 +84,7 @@ fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, st
     let mut temp: Definition = Template {
         meta: meta.clone(),
         name: id.to_string(),
-        args: vec![],
+        args: args.clone(),
         arg_location: *arg..*arg,
         body: block.clone(),
         parallel: false,
@@ -84,17 +94,42 @@ fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, st
     temp
 }
 
-fn process_component_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, last: &mut usize) -> MainComponent {
+fn process_component_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, last: &mut usize, param_stack: &mut Vec<Token>, param_counter: &mut usize) -> MainComponent {
     let start = r.token.iter().find(|t| t.token_type == "COMPONENT").map(|t| &t.start).unwrap();
     let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
     let meta = Meta::new(start.clone(), end.clone());
     *last = *end;
     let id = r.token.iter().find(|t| t.token_type == "ID").map(|t| &t.value).unwrap();
+    let mut args: Vec<Expression> = vec![];
+
+    if r.body.contains(&"PARAM".to_string()) {
+        for _ in 0..*param_counter {
+            let p = param_stack.pop().unwrap();
+            match p.token_type.as_str() {
+                "ID" => {
+                    let ex: Expression = Variable {
+                        meta: Meta::new(p.start.clone(), p.end.clone()),
+                        name: p.value.clone(),
+                        access: vec![],
+                    };
+                    args.push(ex);
+                },
+                "NUM" => {
+                    let ex: Expression = Number(Meta::new(p.start.clone(), p.end.clone()), p.value.clone().parse::<i128>().unwrap());
+                    args.push(ex);
+                },
+                _ => {}
+            }
+        }
+        *param_counter = 0;
+    }
+
+    args.reverse();
 
     let mut ex: Expression = Call {
         meta: meta.clone(),
         id: id.clone(),
-        args: vec![],
+        args: args.clone(),
     };
 
     let mut mc:MainComponent = (vec![], ex.clone());
@@ -221,11 +256,13 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
 
     let mut last: usize = 256;
 
-    let mut id_stack: Vec<Token> = vec![];
-    let mut op_stack: Vec<Token> = vec![];
-    let mut expr_stack: Vec<Expression> = vec![];
-    let mut block_stack: Vec<Statement> = vec![];
+    let mut id_stack: Vec<Token> = vec![];  // Identifier and Num
+    let mut op_stack: Vec<Token> = vec![];  // Operator
+    let mut expr_stack: Vec<Expression> = vec![];  // Expression
+    let mut block_stack: Vec<Statement> = vec![];  // Block
+    let mut param_stack: Vec<Token> = vec![];  // Params for template and component
     let mut stmt_counter: usize = 0;
+    let mut param_counter: usize = 0;
 
     for r in results {
         match r.head.clone().as_str() {
@@ -268,12 +305,24 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             },
             "TEMPLATE_CONTENT" => {},
             "TEMPLATE_STMT" => {
-                definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counter));
+                definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counter, &mut param_stack, &mut param_counter));
             },
             "COMPONENT_BLOCK" => {
-                main_component = Some(process_component_block(&r, &mut block_stack, &mut last));
+                main_component = Some(process_component_block(&r, &mut block_stack, &mut last, &mut param_stack, &mut param_counter));
             },
             "PROGRAM" => break,
+            "ID_OR_NUM" => {
+                // 这里只处理 -> NUM 的情况，其他情况在 ID_OR_ARRAY 处理
+              if r.body.iter().any(|e| e == "NUM") {
+                  let mut t = r.token.iter().find(|t| t.token_type == "NUM").unwrap();
+                  id_stack.push(t.clone());
+              }
+            },
+            "PARAM" => {
+                let mut o = id_stack.pop().unwrap();
+                param_stack.push(o.clone());
+                param_counter = param_counter + 1;
+            },
             _ => {},
         }
     }
