@@ -161,7 +161,6 @@ fn process_var_def(r: &ReduceResult,
         rhe: ex.clone(),
     };
     var_stack.push(sub);
-
 }
 
 fn process_var_stmt(r: &ReduceResult,
@@ -184,6 +183,75 @@ fn process_var_stmt(r: &ReduceResult,
     let i_b = Statement::InitializationBlock {
         meta: meta.clone(),
         xtype: VariableType::Var,
+        initializations: inis.clone(),
+    };
+
+    block_stack.push(i_b);
+}
+
+fn process_comp_def(r: &ReduceResult,
+                    id_stack: &mut Vec<Token>,
+                    expr_stack: &mut Vec<Expression>,
+                    comp_stack: &mut Vec<Statement>,
+                    comp_counter: &mut usize,)
+{
+    let i = id_stack.pop().unwrap();
+    let var_name = i.value.clone();
+    let start =  i.start.clone();
+    let end = i.end.clone();
+    let mut meta = Meta::new(start, end);
+    let mut ex: Expression;
+
+    // "Declaration"
+    let dec = Statement::Declaration {
+        meta: meta.clone(),
+        xtype: VariableType::Component,
+        name: var_name.clone(),
+        dimensions: vec![],
+        is_constant: true,
+    };
+    comp_stack.push(dec);
+    *comp_counter += 1;
+
+    if r.body.len() == 1 {
+        // component a;
+    }
+    else {
+        // component a = A();
+        ex = expr_stack.pop().unwrap();
+        // "Substitution"
+        let sub = Substitution {
+            meta: meta.clone(),
+            var: var_name.clone(),
+            access: vec![],
+            op: AssignOp::AssignVar,
+            rhe: ex.clone(),
+        };
+        comp_stack.push(sub);
+        *comp_counter += 1;
+    }
+}
+
+fn process_comp_stmt(r: &ReduceResult,
+                     comp_stack: &mut Vec<Statement>,
+                     comp_counter: &mut usize,
+                     comp_start: &mut usize,
+                     block_stack: &mut Vec<Statement>)
+{
+    let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
+    let meta = Meta::new(*comp_start, end.clone());
+
+    let mut inis: Vec<Statement> = vec![];
+    for _ in 0..*comp_counter {
+        inis.push(comp_stack.pop().unwrap());
+    }
+    *comp_counter = 0;
+    inis.reverse();
+
+    // "InitializationBlock"
+    let i_b = Statement::InitializationBlock {
+        meta: meta.clone(),
+        xtype: VariableType::Component,
         initializations: inis.clone(),
     };
 
@@ -370,6 +438,10 @@ fn process_expr(r: &ReduceResult,
     }
     else if r.body.contains(&"PLUS".to_string()) {
         // EXPR -> PLUS NUM
+    }
+    else if r.body.contains(&"ID".to_string()) {
+        // EXPR -> ID ( PARAM )
+
     }
     else {
         // EXPR -> ( EXPR )
@@ -710,12 +782,17 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     let mut rel_stack: Vec<Token> = vec![];  // relation operator eg. == >=
     let mut cond_stack: Vec<Expression> = vec![]; // condition eg. 1==1
     let mut assign_stack: Vec<Token> = vec![];  // assign operator eg. = +=
+
     let mut var_stack: Vec<Statement> = vec![];  // var a=1;
     let mut var_counter: usize = 0;
     let mut var_start: usize = 0;
+
+    let mut comp_stack: Vec<Statement> = vec![];  // component a=A(1);
+    let mut comp_counter: usize = 0;
+    let mut comp_start: usize = 0;
+
     let mut for_cond_stack: Vec<ForCond> = vec![];  // for (p1;p2;p3)
 
-    // let mut stmt_counter: usize = 0;
     let mut stmt_counters : Vec<usize> = vec![];
     let mut param_counter: usize = 0;
     let mut counter_flag: bool = false;  // 判断counter是否需要额外+1
@@ -778,6 +855,19 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             "VAR_DEF" => {
                 process_var_def(&r, &mut id_stack, &mut expr_stack, &mut var_stack);
                 var_counter += 2;
+            },
+            "COMPONENT_STMT" => {
+                process_comp_stmt(&r, &mut comp_stack, &mut comp_counter, &mut comp_start, &mut block_stack);
+            },
+            "COMP_" => {
+                if r.body.len() == 2 {
+                    // COMP_ -> COMPONENT COMP_DEF
+                    comp_start = r.token.iter().find(|t| t.token_type == "COMPONENT").unwrap().start;
+                }
+                else {}
+            },
+            "COMP_DEF" => {
+                process_comp_def(&r, &mut id_stack, &mut expr_stack, &mut comp_stack, &mut comp_counter);
             },
             "STMTS" => {
                 if r.body.len() == 1 {

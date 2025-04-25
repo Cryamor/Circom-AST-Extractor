@@ -128,7 +128,7 @@ fn build_token_dict() -> HashMap<&'static str, bool> {
         "VAR_DEF", "VAR_ASSIGN", "ASSIGN_STMT", "EXPR", "C_ASSIGN_STMT", "IF_STMT",
         "M_IF", "N_IF", "M_ELSE", "WHILE_STMT", "M_BEFORE_WHILE", "M_AFTER_WHILE",
         "FOR_STMT", "FOR_COND", "M_FOR", "CONDITION", "COMPONENT_BLOCK", "ASSIGN",
-        "C_ASSIGN", "REL", "PLUS", "OP"
+        "C_ASSIGN", "REL", "PLUS", "OP", "COMPONENT_STMT", "COMP_", "COMP_DEF"
     ];
     for nt in non_terminals {
         dict.insert(nt, false);

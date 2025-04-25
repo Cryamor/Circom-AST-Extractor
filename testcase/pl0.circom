@@ -1,7 +1,0 @@
-PROGRAM example;
-VAR x, y;
-BEGIN
-    x := 2;
-    IF x > 3 THEN
-        y := x + 5;
-END;

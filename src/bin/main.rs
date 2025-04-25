@@ -27,7 +27,8 @@ fn main() -> io::Result<()>{
         // "testcase/2.circom"
         // "testcase/3.circom"
         // "testcase/4.circom"
-        "testcase/5.circom"
+        // "testcase/5.circom"
+        "testcase/6.circom"
     };
 
     let out_path: &str = if args.len() > 2 {
