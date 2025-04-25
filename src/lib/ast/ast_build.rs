@@ -119,7 +119,6 @@ fn process_assign_stmt(r: &ReduceResult,
 
         block_stack.push(substitution);
     }
-
 }
 
 fn process_var_def(r: &ReduceResult,
@@ -566,6 +565,7 @@ fn process_while_stmt(r: &ReduceResult,
 }
 
 fn process_for_stmt(r: &ReduceResult,
+                    for_cond_stack: &mut Vec<ForCond>,
                     stmt_counters: &mut Vec<usize>,
                     block_stack: &mut Vec<Statement>)
 {
@@ -573,9 +573,34 @@ fn process_for_stmt(r: &ReduceResult,
     let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
     let meta: Meta = Meta::new(start.clone(), end.clone());
 
+    let fc = for_cond_stack.pop().unwrap();
+    let cond = fc.p2.clone();
+    let p3 = fc.p3.clone();
+    let p1 = fc.p1.clone();
 
+    let mut counter = stmt_counters.pop().unwrap();
+    let mut block_stmts = vec![];
+    for _ in 0..counter {
+        block_stmts.push(block_stack.pop().unwrap());
+    }
+    block_stmts.reverse();
+    block_stmts.push(p3.clone());
 
+    // p1转化为initialization block, counter+=1
+    block_stack.push(p1.clone());
 
+    let while_block: Statement = Block{
+        meta: meta.clone(),
+        stmts: block_stmts.clone(),
+    };
+
+    let while_stmt: Statement = While {
+        meta: meta.clone(),
+        cond: cond.clone(),
+        stmt: Box::new(while_block.clone()),
+    };
+
+    block_stack.push(while_stmt);
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -593,12 +618,80 @@ impl ForCond {
 fn process_for_cond(r: &ReduceResult,
                     cond_stack: &mut Vec<Expression>,
                     for_cond_stack: &mut Vec<ForCond>,
-                    block_stack: &mut Vec<Statement>)
+                    block_stack: &mut Vec<Statement>,
+                    id_stack: &mut Vec<Token>,
+                    assign_stack: &mut Vec<Token>,
+                    expr_stack: &mut Vec<Expression>)
 {
     let p2 = cond_stack.pop().unwrap();
     let p1 = block_stack.pop().unwrap();
+    let mut p3: Statement;
 
+    // ID_OR_ARRAY ASSIGN EXPR
+    let i = id_stack.pop().unwrap();
+    let var_name = i.value.clone();
+    let ex = expr_stack.pop().unwrap();
+    let assign = assign_stack.pop().unwrap();
+    let start = i.start.clone();
+    let mut end = start.clone();
+    if let Expression::InfixOp { meta, .. } = ex.clone() {
+        end = meta.end;
+    }
+    let mut meta = Meta::new(start.clone(), end.clone());  // incorrect
+    let mut rhe: Expression = ex.clone();
+    let mut infixop: ExpressionInfixOpcode = ExpressionInfixOpcode::Add;
+    if assign.value == "=" {
+        let substitution: Statement = Substitution {
+            meta: meta.clone(),
+            var: var_name.clone(),
+            access: vec![],
+            op: AssignOp::AssignVar,
+            rhe: rhe.clone(),
+        };
+        p3 = substitution.clone();
+    }
+    else {
+        match assign.value.as_str() {
+            "+=" => infixop = ExpressionInfixOpcode::Add,
+            "-=" => infixop = ExpressionInfixOpcode::Sub,
+            "*=" => infixop = ExpressionInfixOpcode::Mul,
+            "/=" => infixop = ExpressionInfixOpcode::Div,
+            "%=" => infixop = ExpressionInfixOpcode::Mod,
+            "QUOTIENT_ASSIGN" => infixop = ExpressionInfixOpcode::IntDiv,
+            "&=" => infixop = ExpressionInfixOpcode::BitAnd,
+            "BITWISE_OR_ASSIGN" => infixop = ExpressionInfixOpcode::BitOr,
+            "^=" => infixop = ExpressionInfixOpcode::BitXor,
+            "<<=" => infixop = ExpressionInfixOpcode::ShiftL,
+            ">>=" => infixop = ExpressionInfixOpcode::ShiftR,
+            _ => {}
+        }
 
+        let lhe = Variable {
+            meta: meta.clone(),
+            name: var_name.clone(),
+            access: vec![],
+        };
+
+        let rhe_1: Expression = InfixOp {
+            meta: meta.clone(),
+            lhe: Box::new(lhe.clone()),
+            infix_op: infixop.clone(),
+            rhe: Box::new(rhe.clone()),
+        };
+
+        let substitution: Statement = Substitution {
+            meta: meta.clone(),
+            var: var_name.clone(),
+            access: vec![],
+            op: AssignOp::AssignVar,
+            rhe: rhe_1.clone(),
+        };
+
+        p3 = substitution.clone();
+    }
+
+    let fc = ForCond::new(p1, p2, p3);
+    for_cond_stack.push(fc);
 }
 
 pub fn build_ast(results: Vec<ReduceResult>) -> AST {
@@ -625,6 +718,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     // let mut stmt_counter: usize = 0;
     let mut stmt_counters : Vec<usize> = vec![];
     let mut param_counter: usize = 0;
+    let mut counter_flag: bool = false;  // 判断counter是否需要额外+1
 
     for r in results {
         match r.head.clone().as_str() {
@@ -695,6 +789,11 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                     let index = stmt_counters.len() - 1;
                     stmt_counters[index] += 1;
                 }
+                if counter_flag {
+                    let index = stmt_counters.len() - 1;
+                    stmt_counters[index] += 1;
+                    counter_flag = false;
+                }
             },
             "TEMPLATE_CONTENT" => {},
             "TEMPLATE_STMT" => {
@@ -729,13 +828,14 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 rel_stack.push(t.clone());
             },
             "WHILE_STMT" => {
-
+                process_while_stmt(&r, &mut cond_stack, &mut stmt_counters, &mut block_stack);
             },
             "FOR_STMT" => {
-
+                process_for_stmt(&r, &mut for_cond_stack, &mut stmt_counters, &mut block_stack);
+                counter_flag = true;
             },
             "FOR_COND" => {
-
+                process_for_cond(&r, &mut cond_stack, &mut for_cond_stack, &mut block_stack, &mut id_stack, &mut assign_stack, &mut expr_stack);
             },
             _ => {},
         }
