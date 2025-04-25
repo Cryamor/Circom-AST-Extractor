@@ -360,7 +360,9 @@ fn process_component_block(r: &ReduceResult,
 fn process_expr(r: &ReduceResult,
                 id_stack: &mut Vec<Token>,
                 expr_stack: &mut Vec<Expression>,
-                op_stack: &mut Vec<Token>)
+                op_stack: &mut Vec<Token>,
+                param_stack: &mut Vec<Token>,
+                param_counters: &mut Vec<usize>)
 {
     if r.body.len() == 1 {
         // EXPR -> ID_OR_NUM
@@ -439,9 +441,40 @@ fn process_expr(r: &ReduceResult,
     else if r.body.contains(&"PLUS".to_string()) {
         // EXPR -> PLUS NUM
     }
-    else if r.body.contains(&"ID".to_string()) {
-        // EXPR -> ID ( PARAM )
-
+    else if r.body.contains(&"ID_OR_ARRAY".to_string()) {
+        let i = id_stack.pop().unwrap();
+        let mut args = vec![];
+        let end = r.token.iter().find(|t| t.token_type == "RPAREN").map(|t| &t.end).unwrap();
+        if r.body.contains(&"PARAM".to_string()) {
+            // EXPR -> ID ( PARAM )
+            let counter = param_counters.pop().unwrap();
+            for _ in 0..counter {
+                let p = param_stack.pop().unwrap();
+                match p.token_type.as_str() {
+                    "ID" => {
+                        let ex: Expression = Variable {
+                            meta: Meta::new(p.start.clone(), p.end.clone()),
+                            name: p.value.clone(),
+                            access: vec![],
+                        };
+                        args.push(ex);
+                    },
+                    "NUM" => {
+                        let num = Num::new(Sign::NoSign, vec![p.value.clone().parse::<i128>().unwrap()]);
+                        let ex: Expression = Number(Meta::new(p.start.clone(), p.end.clone()), num.clone());
+                        args.push(ex);
+                    },
+                    _ => {}
+                }
+            }
+        }
+        args.reverse();
+        let ca: Expression = Call {
+            meta: Meta::new(i.start.clone(), end.clone()),
+            id: i.value.clone(),
+            args: args.clone(),
+        };
+        expr_stack.push(ca);
     }
     else {
         // EXPR -> ( EXPR )
@@ -835,7 +868,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 process_assign_stmt(&r, &mut id_stack, &mut assign_stack, &mut expr_stack, &mut block_stack);
             },
             "EXPR" => {
-                process_expr(&r, &mut id_stack, &mut expr_stack, &mut op_stack);
+                process_expr(&r, &mut id_stack, &mut expr_stack, &mut op_stack, &mut param_stack, &mut param_counters);
             },
             "C_ASSIGN_STMT" => {
                 process_c_assign_stmt(&r, &mut id_stack, &mut expr_stack, &mut block_stack, &mut op_stack);
