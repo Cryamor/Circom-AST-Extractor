@@ -2,6 +2,9 @@
 /target/
 /out/
 
+# 忽略插件文件
+/.VSCodeCounter/
+
 # 忽略日志文件
 *.log
 
