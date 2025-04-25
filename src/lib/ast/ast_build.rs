@@ -1,8 +1,9 @@
 use std::ops::Range;
+use serde::de::Unexpected::Option;
 use crate::ast::ast::*;
 use crate::ast::ast::Definition::Template;
 use crate::ast::ast::Expression::{Call, InfixOp, Number, Variable};
-use crate::ast::ast::Statement::{Block, Substitution};
+use crate::ast::ast::Statement::{Block, IfThenElse, Substitution};
 use crate::lexer::token::Token;
 use crate::parser::lr1::ReduceResult;
 
@@ -47,6 +48,68 @@ fn process_signal_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, block_stack:
     };
 
     block_stack.push(i_b);
+}
+
+fn process_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, assign_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, block_stack: &mut Vec<Statement>) {
+    let i = id_stack.pop().unwrap();
+    let var_name = i.value.clone();
+    let start = i.start.clone();
+    let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap().clone();
+    let mut meta = Meta::new(start, end);
+    let ex = expr_stack.pop().unwrap();
+    let assign = assign_stack.pop().unwrap();
+    let mut rhe: Expression = ex.clone();
+    let mut infixop: ExpressionInfixOpcode = ExpressionInfixOpcode::Add;
+    if assign.value == "=" {
+        let substitution: Statement = Substitution {
+            meta: meta.clone(),
+            var: var_name.clone(),
+            access: vec![],
+            op: AssignOp::AssignVar,
+            rhe: rhe.clone(),
+        };
+        block_stack.push(substitution);
+    }
+    else {
+        match assign.value.as_str() {
+            "+=" => infixop = ExpressionInfixOpcode::Add,
+            "-=" => infixop = ExpressionInfixOpcode::Sub,
+            "*=" => infixop = ExpressionInfixOpcode::Mul,
+            "/=" => infixop = ExpressionInfixOpcode::Div,
+            "%=" => infixop = ExpressionInfixOpcode::Mod,
+            "QUOTIENT_ASSIGN" => infixop = ExpressionInfixOpcode::IntDiv,
+            "&=" => infixop = ExpressionInfixOpcode::BitAnd,
+            "BITWISE_OR_ASSIGN" => infixop = ExpressionInfixOpcode::BitOr,
+            "^=" => infixop = ExpressionInfixOpcode::BitXor,
+            "<<=" => infixop = ExpressionInfixOpcode::ShiftL,
+            ">>=" => infixop = ExpressionInfixOpcode::ShiftR,
+            _ => {}
+        }
+
+        let lhe = Variable {
+            meta: meta.clone(),
+            name: var_name.clone(),
+            access: vec![],
+        };
+
+        let rhe_1: Expression = InfixOp {
+            meta: meta.clone(),
+            lhe: Box::new(lhe.clone()),
+            infix_op: infixop.clone(),
+            rhe: Box::new(rhe.clone()),
+        };
+
+        let substitution: Statement = Substitution {
+            meta: meta.clone(),
+            var: var_name.clone(),
+            access: vec![],
+            op: AssignOp::AssignVar,
+            rhe: rhe_1.clone(),
+        };
+
+        block_stack.push(substitution);
+    }
+
 }
 
 fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, stmt_counter: &mut usize, param_stack: &mut Vec<Token>, param_counter: &mut usize) -> Definition {
@@ -248,21 +311,123 @@ fn process_c_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack
     block_stack.push(substitution);
 }
 
-fn process_cond(r: &ReduceResult, expr_stack: &mut Vec<Expression>, rel_stack: &mut Vec<Token>) {
+fn process_cond(r: &ReduceResult, expr_stack: &mut Vec<Expression>, rel_stack: &mut Vec<Token>, cond_stack: &mut Vec<Expression>) {
+    let re = expr_stack.pop().unwrap();
+    let le = expr_stack.pop().unwrap();
+    let rel = rel_stack.pop().unwrap();
+
+    let mut meta = Meta::new(rel.start.clone(), rel.end.clone());
+
+    let mut eio: ExpressionInfixOpcode;
+    match rel.value.as_str() {
+        "==" => eio = ExpressionInfixOpcode::Eq,
+        "!=" => eio = ExpressionInfixOpcode::NotEq,
+        "<" => eio = ExpressionInfixOpcode::Lesser,
+        "<=" => eio = ExpressionInfixOpcode::LesserEq,
+        ">" => eio = ExpressionInfixOpcode::Greater,
+        ">=" => eio = ExpressionInfixOpcode::GreaterEq,
+        _ => eio =ExpressionInfixOpcode::Eq,
+    }
+
+    let mut cond : Expression = InfixOp {
+        meta: meta.clone(),
+        lhe: Box::new(le.clone()),
+        infix_op: eio.clone(),
+        rhe: Box::new(re.clone()),
+    };
+
+    cond_stack.push(cond);
+}
+fn process_if_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>, stmt_counters: &mut Vec<usize>, block_stack: &mut Vec<Statement>) {
+    let start = r.token.iter().find(|t| t.token_type == "IF").map(|t| &t.start).unwrap();
+    let end = r.token.iter()
+        .filter(|t| t.token_type == "RBRACE")
+        .fold(None, |max, t| Some(max.map_or(t.end, |current_max| if t.end > current_max { t.end } else { current_max })))
+        .unwrap_or(0);
+
+    let meta: Meta = Meta::new(start.clone(), end.clone());
+    let cond = cond_stack.pop().unwrap();
+
+    if r.body.iter().any(|e| e == "ELSE") {
+        let counter2 = stmt_counters.pop().unwrap();  // else
+        let mut block_stmts2 = vec![];
+        let counter1 = stmt_counters.pop().unwrap();  // if
+        let mut block_stmts1 = vec![];
+
+        for _ in 0..counter2 {
+            block_stmts2.push(block_stack.pop().unwrap());
+        }
+        block_stmts2.reverse();
+
+        for _ in 0..counter1 {
+            block_stmts1.push(block_stack.pop().unwrap());
+        }
+        block_stmts1.reverse();
+
+        let lbrace_tokens: Vec<_> = r.token.iter().filter(|t| t.token_type == "LBRACE").collect();
+        let rbrace_tokens: Vec<_> = r.token.iter().filter(|t| t.token_type == "RBRACE").collect();
+
+        let lbrace_start = lbrace_tokens.iter().map(|t| t.start).collect::<Vec<usize>>();
+        let mut lbrace_start_sorted = lbrace_start.clone();
+        lbrace_start_sorted.sort();
+        let lbrace_start1 = lbrace_start_sorted[0];
+        let lbrace_start2 = lbrace_start_sorted[1];
+
+        let rbrace_end = rbrace_tokens.iter().map(|t| t.end).collect::<Vec<usize>>();
+        let mut rbrace_end_sorted = rbrace_end.clone();
+        rbrace_end_sorted.sort();
+        let rbrace_end1 = rbrace_end_sorted[0];
+        let rbrace_end2 = rbrace_end_sorted[1];
+
+        let meta1: Meta = Meta::new(lbrace_start1.clone(), rbrace_end1.clone());
+        let meta2: Meta = Meta::new(lbrace_start2.clone(), rbrace_end2.clone());
+
+        let mut if_block: Statement = Block {
+            meta: meta1.clone(),
+            stmts: block_stmts1.clone(),
+        };
+        let mut else_block: Statement = Block {
+            meta: meta2.clone(),
+            stmts: block_stmts2.clone(),
+        };
+        let st: Statement = IfThenElse {
+            meta: meta.clone(),
+            cond: cond.clone(),
+            if_case: Box::new(if_block.clone()),
+            else_case: Some(Box::new(else_block.clone())),
+        };
+        block_stack.push(st.clone());
+    }
+    else {
+        let counter = stmt_counters.pop().unwrap();
+        let mut block_stmts = vec![];
+        for _ in 0..counter {
+            block_stmts.push(block_stack.pop().unwrap());
+        }
+        block_stmts.reverse();
+
+        let if_start = r.token.iter().find(|t| t.token_type == "LBRACE").map(|t| &t.start).unwrap();
+        let if_meta = Meta::new(if_start.clone(), end.clone());
+        let mut if_block: Statement = Block {
+            meta: if_meta.clone(),
+            stmts: block_stmts.clone(),
+        };
+        let st: Statement = IfThenElse {
+            meta: meta.clone(),
+            cond: cond.clone(),
+            if_case: Box::new(if_block.clone()),
+            else_case: None,
+        };
+        block_stack.push(st.clone());
+    }
 
 }
-
-fn process_if_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>) {
-
-}
-
-
 
 pub fn build_ast(results: Vec<ReduceResult>) -> AST {
 
     let mut compiler_version: Version = (0, 0, 0);
     let mut definitions: Vec<Definition> = vec![];
-    let mut main_component: Option<MainComponent> = Option::None;
+    let mut main_component: std::option::Option<MainComponent> = None;
 
     let mut last: usize = 256;
 
@@ -275,7 +440,8 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     let mut cond_stack: Vec<Expression> = vec![]; // condition eg. 1==1
     let mut assign_stack: Vec<Token> = vec![];  // assign operator eg. = +=
 
-    let mut stmt_counter: usize = 0;
+    // let mut stmt_counter: usize = 0;
+    let mut stmt_counters : Vec<usize> = vec![];
     let mut param_counter: usize = 0;
 
     for r in results {
@@ -313,7 +479,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 assign_stack.push(t.clone());
             },
             "ASSIGN_STMT" => {
-
+                process_assign_stmt(&r, &mut id_stack, &mut assign_stack, &mut expr_stack, &mut block_stack);
             },
             "EXPR" => {
                 process_expr(&r, &mut id_stack, &mut expr_stack, &mut op_stack);
@@ -324,17 +490,19 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             "STMTS" => {
                 if r.body.len() == 1 {
                     // STMTS -> STMT 表示一个新的块
-
-
+                    stmt_counters.push(1);
                 }
                 else {
-
+                    // STMTS -> STMT STMTS 表示新增
+                    let index = stmt_counters.len() - 1;
+                    stmt_counters[index] += 1;
                 }
-              stmt_counter = stmt_counter + 1;
             },
             "TEMPLATE_CONTENT" => {},
             "TEMPLATE_STMT" => {
-                definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counter, &mut param_stack, &mut param_counter));
+                let index = stmt_counters.len() - 1;
+                definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counters[index], &mut param_stack, &mut param_counter));
+                stmt_counters.pop();
             },
             "COMPONENT_BLOCK" => {
                 main_component = Some(process_component_block(&r, &mut block_stack, &mut last, &mut param_stack, &mut param_counter));
@@ -353,10 +521,10 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 param_counter = param_counter + 1;
             },
             "IF_STMT" => {
-
+                process_if_stmt(&r, &mut cond_stack, &mut stmt_counters, &mut block_stack);
             },
             "CONDITION" => {
-
+                process_cond(&r, &mut expr_stack, &mut rel_stack, &mut cond_stack);
             },
             "REL" => {
                 let mut t = r.token[0].clone();
