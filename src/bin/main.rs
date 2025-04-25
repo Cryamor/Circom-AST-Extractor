@@ -24,8 +24,8 @@ fn main() -> io::Result<()>{
         &*args[1].clone()
     } else {
         // "testcase/1.circom"
-        "testcase/2.circom"
-        // "testcase/3.circom"
+        // "testcase/2.circom"
+        "testcase/3.circom"
         // "testcase/4.circom"
     };
 

@@ -3,6 +3,7 @@ use serde::de::Unexpected::Option;
 use crate::ast::ast::*;
 use crate::ast::ast::Definition::Template;
 use crate::ast::ast::Expression::{Call, InfixOp, Number, Variable};
+use crate::ast::ast::Sign::NoSign;
 use crate::ast::ast::Statement::{Block, IfThenElse, Substitution};
 use crate::lexer::token::Token;
 use crate::parser::lr1::ReduceResult;
@@ -112,6 +113,66 @@ fn process_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, assign_stack
 
 }
 
+fn process_var_def(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, var_stack: &mut Vec<Statement>) {
+    let i = id_stack.pop().unwrap();
+    let var_name = i.value.clone();
+    let start =  i.start.clone();
+    let end = i.end.clone();
+    let mut meta = Meta::new(start, end);
+    let mut ex: Expression;
+
+    // "Declaration"
+    let dec = Statement::Declaration {
+        meta: meta.clone(),
+        xtype: VariableType::Var,
+        name: var_name.clone(),
+        dimensions: vec![],
+        is_constant: true,
+    };
+    var_stack.push(dec);
+
+    if r.body.len() == 1 {
+        // var a;
+        let num = Num::new(NoSign, vec![]);
+        ex = Number(meta.clone(), num.clone());
+    }
+    else {
+        // var a = 0;
+        ex = expr_stack.pop().unwrap();
+    }
+    // "Substitution"
+    let sub = Substitution {
+        meta: meta.clone(),
+        var: var_name.clone(),
+        access: vec![],
+        op: AssignOp::AssignVar,
+        rhe: ex.clone(),
+    };
+    var_stack.push(sub);
+
+}
+
+fn process_var_stmt(r: &ReduceResult, var_stack: &mut Vec<Statement>, var_counter: &mut usize, var_start: &mut usize, block_stack: &mut Vec<Statement>) {
+    let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
+    let meta = Meta::new(*var_start, end.clone());
+
+    let mut inis: Vec<Statement> = vec![];
+    for _ in 0..*var_counter {
+        inis.push(var_stack.pop().unwrap());
+    }
+    *var_counter = 0;
+    inis.reverse();
+
+    // "InitializationBlock"
+    let i_b = Statement::InitializationBlock {
+        meta: meta.clone(),
+        xtype: VariableType::Var,
+        initializations: inis.clone(),
+    };
+
+    block_stack.push(i_b);
+}
+
 fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, stmt_counter: &mut usize, param_stack: &mut Vec<Token>, param_counter: &mut usize) -> Definition {
     let start = r.token.iter().find(|t| t.token_type == "TEMPLATE").map(|t| &t.start).unwrap();
     let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
@@ -178,7 +239,7 @@ fn process_component_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, l
                     args.push(ex);
                 },
                 "NUM" => {
-                    let num = Num::new(Sign::NoSign, p.value.clone().parse::<i128>().unwrap());
+                    let num = Num::new(Sign::NoSign, vec![p.value.clone().parse::<i128>().unwrap()]);
                     let ex: Expression = Number(Meta::new(p.start.clone(), p.end.clone()), num.clone());
                     args.push(ex);
                 },
@@ -215,7 +276,7 @@ fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Ve
                 expr_stack.push(ex);
             },
             "NUM" => {
-                let num = Num::new(Sign::NoSign, i.value.clone().parse::<i128>().unwrap());
+                let num = Num::new(Sign::NoSign, vec![i.value.clone().parse::<i128>().unwrap()]);
                 let ex: Expression = Number(Meta::new(i.start.clone(), i.end.clone()), num.clone());
                 expr_stack.push(ex);
             },
@@ -236,11 +297,11 @@ fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Ve
                 }
             }
             "NUM" => {
-                let num = Num::new(Sign::NoSign, i.value.clone().parse::<i128>().unwrap());
+                let num = Num::new(Sign::NoSign, vec![i.value.clone().parse::<i128>().unwrap()]);
                 rhe = Number(Meta::new(i.start.clone(), i.end.clone()), num.clone());
             }
             _ => {
-                let num = Num::new(Sign::Minus, 1);
+                let num = Num::new(Sign::Minus, vec![1]);
                 rhe = Number(Meta::new(i.start.clone(), i.end.clone()), num.clone());
             }
         }
@@ -443,6 +504,9 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     let mut rel_stack: Vec<Token> = vec![];  // relation operator eg. == >=
     let mut cond_stack: Vec<Expression> = vec![]; // condition eg. 1==1
     let mut assign_stack: Vec<Token> = vec![];  // assign operator eg. = +=
+    let mut var_stack: Vec<Statement> = vec![];
+    let mut var_counter: usize = 0;
+    let mut var_start: usize = 0;
 
     // let mut stmt_counter: usize = 0;
     let mut stmt_counters : Vec<usize> = vec![];
@@ -492,7 +556,20 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 process_c_assign_stmt(&r, &mut id_stack, &mut expr_stack, &mut block_stack, &mut op_stack);
             },
             "VAR_STMT" => {
-
+                process_var_stmt(&r, &mut var_stack, &mut var_counter, &mut var_start, &mut block_stack);
+            },
+            "VAR_" => {
+                if r.body.len() == 2 {
+                    // VAR_ -> VAR VAR_DEF
+                    var_start = r.token.iter().find(|t| t.token_type == "VAR").unwrap().start;
+                }
+                else {
+                    // VAR_ -> VAR_ , VAR_DEF
+                }
+            },
+            "VAR_DEF" => {
+                process_var_def(&r, &mut id_stack, &mut expr_stack, &mut var_stack);
+                var_counter += 2;
             },
             "STMTS" => {
                 if r.body.len() == 1 {

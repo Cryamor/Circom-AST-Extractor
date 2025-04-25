@@ -34,8 +34,8 @@ pub struct Num {
     pub data: Vec<i128>,
 }
 impl Num {
-    pub fn new(sign: Sign, d: i128) -> Num {
-        Num {sign, data: vec![d]}
+    pub fn new(sign: Sign, d: Vec<i128>) -> Num {
+        Num {sign, data: d}
     }
 }
 
