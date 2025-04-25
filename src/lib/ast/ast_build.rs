@@ -794,7 +794,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     let mut for_cond_stack: Vec<ForCond> = vec![];  // for (p1;p2;p3)
 
     let mut stmt_counters : Vec<usize> = vec![];
-    let mut param_counter: usize = 0;
+    let mut param_counters: Vec<usize> = vec![];
     let mut counter_flag: bool = false;  // 判断counter是否需要额外+1
 
     for r in results {
@@ -888,11 +888,17 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             "TEMPLATE_CONTENT" => {},
             "TEMPLATE_STMT" => {
                 let index = stmt_counters.len() - 1;
+                let index1 = param_counters.len() - 1;
+                let mut param_counter = param_counters[index1];
                 definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counters[index], &mut param_stack, &mut param_counter));
                 stmt_counters.pop();
+                param_counters.pop();
             },
             "COMPONENT_BLOCK" => {
+                let index = param_counters.len() - 1;
+                let mut param_counter = param_counters[index];
                 main_component = Some(process_component_block(&r, &mut block_stack, &mut last, &mut param_stack, &mut param_counter));
+                param_counters.pop();
             },
             "PROGRAM" => break,
             "ID_OR_NUM" => {
@@ -905,7 +911,13 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             "PARAM" => {
                 let mut t = id_stack.pop().unwrap();
                 param_stack.push(t.clone());
-                param_counter = param_counter + 1;
+                if r.body.len() == 1 {
+                    param_counters.push(1);
+                }
+                else {
+                    let index = param_counters.len() - 1;
+                    param_counters[index] += 1;
+                }
             },
             "IF_STMT" => {
                 process_if_stmt(&r, &mut cond_stack, &mut stmt_counters, &mut block_stack);
