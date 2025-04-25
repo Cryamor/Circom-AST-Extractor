@@ -178,7 +178,8 @@ fn process_component_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, l
                     args.push(ex);
                 },
                 "NUM" => {
-                    let ex: Expression = Number(Meta::new(p.start.clone(), p.end.clone()), p.value.clone().parse::<i128>().unwrap());
+                    let num = Num::new(Sign::NoSign, p.value.clone().parse::<i128>().unwrap());
+                    let ex: Expression = Number(Meta::new(p.start.clone(), p.end.clone()), num.clone());
                     args.push(ex);
                 },
                 _ => {}
@@ -214,7 +215,8 @@ fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Ve
                 expr_stack.push(ex);
             },
             "NUM" => {
-                let ex: Expression = Number(Meta::new(i.start.clone(), i.end.clone()), i.value.clone().parse::<i128>().unwrap());
+                let num = Num::new(Sign::NoSign, i.value.clone().parse::<i128>().unwrap());
+                let ex: Expression = Number(Meta::new(i.start.clone(), i.end.clone()), num.clone());
                 expr_stack.push(ex);
             },
             _ => {}
@@ -234,10 +236,12 @@ fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Ve
                 }
             }
             "NUM" => {
-                rhe = Number(Meta::new(i.start.clone(), i.end.clone()), i.value.clone().parse::<i128>().unwrap());
+                let num = Num::new(Sign::NoSign, i.value.clone().parse::<i128>().unwrap());
+                rhe = Number(Meta::new(i.start.clone(), i.end.clone()), num.clone());
             }
             _ => {
-                rhe = Number(Meta::new(i.start.clone(), i.end.clone()), -1);
+                let num = Num::new(Sign::Minus, 1);
+                rhe = Number(Meta::new(i.start.clone(), i.end.clone()), num.clone());
             }
         }
 
@@ -486,6 +490,9 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             },
             "C_ASSIGN_STMT" => {
                 process_c_assign_stmt(&r, &mut id_stack, &mut expr_stack, &mut block_stack, &mut op_stack);
+            },
+            "VAR_STMT" => {
+
             },
             "STMTS" => {
                 if r.body.len() == 1 {

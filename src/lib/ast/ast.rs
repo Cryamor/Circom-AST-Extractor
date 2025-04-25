@@ -22,6 +22,23 @@ pub type Version = (usize, usize, usize);
 pub type FileID = usize;
 pub type FileLocation = Range<usize>;
 
+#[derive(PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Debug, Hash, Serialize)]
+pub enum Sign {
+    Minus,
+    NoSign,
+    Plus,
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct Num {
+    pub sign: Sign,
+    pub data: Vec<i128>,
+}
+impl Num {
+    pub fn new(sign: Sign, d: i128) -> Num {
+        Num {sign, data: vec![d]}
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct Meta {
     pub elem_id: usize,
@@ -289,8 +306,8 @@ pub enum Expression {
         name: String,
         access: Vec<Access>,
     },
-    Number(Meta, i128),
-    // Number(Meta, BigInt),
+    // Number(Meta, i128),
+    Number(Meta, Num),
     Call {
         meta: Meta,
         id: String,
