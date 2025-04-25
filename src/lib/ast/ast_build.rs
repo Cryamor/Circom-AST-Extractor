@@ -1,10 +1,11 @@
 use std::ops::Range;
 use serde::de::Unexpected::Option;
+use serde::Serialize;
 use crate::ast::ast::*;
 use crate::ast::ast::Definition::Template;
 use crate::ast::ast::Expression::{Call, InfixOp, Number, Variable};
 use crate::ast::ast::Sign::NoSign;
-use crate::ast::ast::Statement::{Block, IfThenElse, Substitution};
+use crate::ast::ast::Statement::{Block, IfThenElse, Substitution, While};
 use crate::lexer::token::Token;
 use crate::parser::lr1::ReduceResult;
 
@@ -488,6 +489,68 @@ fn process_if_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>, stmt_coun
 
 }
 
+fn process_while_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>, stmt_counters: &mut Vec<usize>, block_stack: &mut Vec<Statement>) {
+    let start = r.token.iter().find(|t| t.token_type == "WHILE").map(|t| &t.start).unwrap();
+    let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
+    let meta: Meta = Meta::new(start.clone(), end.clone());
+    let cond = cond_stack.pop().unwrap();
+
+    let mut counter = stmt_counters.pop().unwrap();
+    let mut block_stmts = vec![];
+    for _ in 0..counter {
+        block_stmts.push(block_stack.pop().unwrap());
+    }
+    block_stmts.reverse();
+
+    let while_block: Statement = Block{
+        meta: meta.clone(),
+        stmts: block_stmts.clone(),
+    };
+
+    let while_stmt: Statement = While {
+        meta: meta.clone(),
+        cond: cond.clone(),
+        stmt: Box::new(while_block.clone()),
+    };
+
+    block_stack.push(while_stmt);
+}
+
+fn process_for_stmt(r: &ReduceResult,
+                    stmt_counters: &mut Vec<usize>,
+                    block_stack: &mut Vec<Statement>)
+{
+    let start = r.token.iter().find(|t| t.token_type == "FOR").map(|t| &t.start).unwrap();
+    let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
+    let meta: Meta = Meta::new(start.clone(), end.clone());
+
+
+
+
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ForCond {
+    pub p1: Statement, // var i = 0;   InitializationBlock
+    pub p2: Expression, // i < 10;
+    pub p3: Statement, // i += 1;   Substitution
+}
+impl ForCond {
+    pub fn new(p1: Statement, p2: Expression, p3: Statement) -> ForCond {
+        ForCond { p1, p2, p3 }
+    }
+}
+
+fn process_for_cond(r: &ReduceResult, cond_stack: &mut Vec<Expression>,
+                    for_cond_stack: &mut Vec<ForCond>,
+                    block_stack: &mut Vec<Statement>)
+{
+    let p2 = cond_stack.pop().unwrap();
+    let p1 = block_stack.pop().unwrap();
+    
+
+}
+
 pub fn build_ast(results: Vec<ReduceResult>) -> AST {
 
     let mut compiler_version: Version = (0, 0, 0);
@@ -504,9 +567,10 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
     let mut rel_stack: Vec<Token> = vec![];  // relation operator eg. == >=
     let mut cond_stack: Vec<Expression> = vec![]; // condition eg. 1==1
     let mut assign_stack: Vec<Token> = vec![];  // assign operator eg. = +=
-    let mut var_stack: Vec<Statement> = vec![];
+    let mut var_stack: Vec<Statement> = vec![];  // var a=1;
     let mut var_counter: usize = 0;
     let mut var_start: usize = 0;
+    let mut for_cond_stack: Vec<ForCond> = vec![];  // for (p1;p2;p3)
 
     // let mut stmt_counter: usize = 0;
     let mut stmt_counters : Vec<usize> = vec![];
@@ -613,6 +677,15 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             "REL" => {
                 let mut t = r.token[0].clone();
                 rel_stack.push(t.clone());
+            },
+            "WHILE_STMT" => {
+
+            },
+            "FOR_STMT" => {
+
+            },
+            "FOR_COND" => {
+
             },
             _ => {},
         }
