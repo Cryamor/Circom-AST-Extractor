@@ -23,8 +23,8 @@ fn main() -> io::Result<()>{
     let file_path: &str = if args.len() > 1 {
         &*args[1].clone()
     } else {
-        // "testcase/1.circom"
-        "testcase/2.circom"
+        "testcase/1.circom"
+        // "testcase/2.circom"
         // "testcase/3.circom"
         // "testcase/4.circom"
     };
