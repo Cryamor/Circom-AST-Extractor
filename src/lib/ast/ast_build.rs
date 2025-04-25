@@ -18,7 +18,10 @@ fn process_version(version: &str) -> Version {
     (p1, p2, p3)
 }
 
-fn process_signal_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, block_stack: &mut Vec<Statement>) {
+fn process_signal_stmt(r: &ReduceResult,
+                       id_stack: &mut Vec<Token>,
+                       block_stack: &mut Vec<Statement>)
+{
     let start = r.token.iter().find(|t| t.token_type == "SIGNAL").map(|t| &t.start).unwrap();
     let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
     let meta = Meta::new(start.clone(), end.clone());
@@ -52,7 +55,12 @@ fn process_signal_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, block_stack:
     block_stack.push(i_b);
 }
 
-fn process_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, assign_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, block_stack: &mut Vec<Statement>) {
+fn process_assign_stmt(r: &ReduceResult,
+                       id_stack: &mut Vec<Token>,
+                       assign_stack: &mut Vec<Token>,
+                       expr_stack: &mut Vec<Expression>,
+                       block_stack: &mut Vec<Statement>)
+{
     let i = id_stack.pop().unwrap();
     let var_name = i.value.clone();
     let start = i.start.clone();
@@ -114,7 +122,11 @@ fn process_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, assign_stack
 
 }
 
-fn process_var_def(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, var_stack: &mut Vec<Statement>) {
+fn process_var_def(r: &ReduceResult,
+                   id_stack: &mut Vec<Token>,
+                   expr_stack: &mut Vec<Expression>,
+                   var_stack: &mut Vec<Statement>)
+{
     let i = id_stack.pop().unwrap();
     let var_name = i.value.clone();
     let start =  i.start.clone();
@@ -153,7 +165,12 @@ fn process_var_def(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut
 
 }
 
-fn process_var_stmt(r: &ReduceResult, var_stack: &mut Vec<Statement>, var_counter: &mut usize, var_start: &mut usize, block_stack: &mut Vec<Statement>) {
+fn process_var_stmt(r: &ReduceResult,
+                    var_stack: &mut Vec<Statement>,
+                    var_counter: &mut usize,
+                    var_start: &mut usize,
+                    block_stack: &mut Vec<Statement>)
+{
     let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
     let meta = Meta::new(*var_start, end.clone());
 
@@ -174,7 +191,12 @@ fn process_var_stmt(r: &ReduceResult, var_stack: &mut Vec<Statement>, var_counte
     block_stack.push(i_b);
 }
 
-fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, stmt_counter: &mut usize, param_stack: &mut Vec<Token>, param_counter: &mut usize) -> Definition {
+fn process_template_block(r: &ReduceResult,
+                          block_stack: &mut Vec<Statement>,
+                          stmt_counter: &mut usize,
+                          param_stack: &mut Vec<Token>,
+                          param_counter: &mut usize) -> Definition
+{
     let start = r.token.iter().find(|t| t.token_type == "TEMPLATE").map(|t| &t.start).unwrap();
     let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
     let arg = r.token.iter().find(|t| t.token_type == "LBRACE").map(|t| &t.end).unwrap();
@@ -219,7 +241,12 @@ fn process_template_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, st
     temp
 }
 
-fn process_component_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, last: &mut usize, param_stack: &mut Vec<Token>, param_counter: &mut usize) -> MainComponent {
+fn process_component_block(r: &ReduceResult,
+                           block_stack: &mut Vec<Statement>,
+                           last: &mut usize,
+                           param_stack: &mut Vec<Token>,
+                           param_counter: &mut usize) -> MainComponent
+{
     let start = r.token.iter().find(|t| t.token_type == "COMPONENT").map(|t| &t.start).unwrap();
     let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap();
     let meta = Meta::new(start.clone(), end.clone());
@@ -263,7 +290,11 @@ fn process_component_block(r: &ReduceResult, block_stack: &mut Vec<Statement>, l
     mc
 }
 
-fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, op_stack: &mut Vec<Token>) {
+fn process_expr(r: &ReduceResult,
+                id_stack: &mut Vec<Token>,
+                expr_stack: &mut Vec<Expression>,
+                op_stack: &mut Vec<Token>)
+{
     if r.body.len() == 1 {
         // EXPR -> ID_OR_NUM
         let i = id_stack.pop().unwrap();
@@ -347,7 +378,12 @@ fn process_expr(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Ve
 
 }
 
-fn process_c_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack: &mut Vec<Expression>, block_stack: &mut Vec<Statement>, op_stack: &mut Vec<Token>) {
+fn process_c_assign_stmt(r: &ReduceResult,
+                         id_stack: &mut Vec<Token>,
+                         expr_stack: &mut Vec<Expression>,
+                         block_stack: &mut Vec<Statement>,
+                         op_stack: &mut Vec<Token>)
+{
     let mut end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap().clone();
     let i = id_stack.pop().unwrap();
     let mut start = i.start.clone();
@@ -377,7 +413,11 @@ fn process_c_assign_stmt(r: &ReduceResult, id_stack: &mut Vec<Token>, expr_stack
     block_stack.push(substitution);
 }
 
-fn process_cond(r: &ReduceResult, expr_stack: &mut Vec<Expression>, rel_stack: &mut Vec<Token>, cond_stack: &mut Vec<Expression>) {
+fn process_cond(r: &ReduceResult,
+                expr_stack: &mut Vec<Expression>,
+                rel_stack: &mut Vec<Token>,
+                cond_stack: &mut Vec<Expression>)
+{
     let re = expr_stack.pop().unwrap();
     let le = expr_stack.pop().unwrap();
     let rel = rel_stack.pop().unwrap();
@@ -404,7 +444,12 @@ fn process_cond(r: &ReduceResult, expr_stack: &mut Vec<Expression>, rel_stack: &
 
     cond_stack.push(cond);
 }
-fn process_if_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>, stmt_counters: &mut Vec<usize>, block_stack: &mut Vec<Statement>) {
+
+fn process_if_stmt(r: &ReduceResult,
+                   cond_stack: &mut Vec<Expression>,
+                   stmt_counters: &mut Vec<usize>,
+                   block_stack: &mut Vec<Statement>)
+{
     let start = r.token.iter().find(|t| t.token_type == "IF").map(|t| &t.start).unwrap();
     let end = r.token.iter()
         .filter(|t| t.token_type == "RBRACE")
@@ -489,7 +534,11 @@ fn process_if_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>, stmt_coun
 
 }
 
-fn process_while_stmt(r: &ReduceResult, cond_stack: &mut Vec<Expression>, stmt_counters: &mut Vec<usize>, block_stack: &mut Vec<Statement>) {
+fn process_while_stmt(r: &ReduceResult,
+                      cond_stack: &mut Vec<Expression>,
+                      stmt_counters: &mut Vec<usize>,
+                      block_stack: &mut Vec<Statement>)
+{
     let start = r.token.iter().find(|t| t.token_type == "WHILE").map(|t| &t.start).unwrap();
     let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
     let meta: Meta = Meta::new(start.clone(), end.clone());
@@ -541,13 +590,14 @@ impl ForCond {
     }
 }
 
-fn process_for_cond(r: &ReduceResult, cond_stack: &mut Vec<Expression>,
+fn process_for_cond(r: &ReduceResult,
+                    cond_stack: &mut Vec<Expression>,
                     for_cond_stack: &mut Vec<ForCond>,
                     block_stack: &mut Vec<Statement>)
 {
     let p2 = cond_stack.pop().unwrap();
     let p1 = block_stack.pop().unwrap();
-    
+
 
 }
 
