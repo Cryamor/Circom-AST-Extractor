@@ -23,7 +23,7 @@ fn main() -> io::Result<()>{
     let file_path: &str = if args.len() > 1 {
         &*args[1].clone()
     } else {
-        // "testcase/1.circom"
+        "testcase/1.circom"
         // "testcase/2.circom"
         // "testcase/3.circom"
         // "testcase/4.circom"
@@ -31,7 +31,7 @@ fn main() -> io::Result<()>{
         // "testcase/6.circom"
         // "testcase/1-1.circom"
         // "testcase/1-error-lexer.circom"
-        "testcase/1-error-parser.circom"
+        // "testcase/1-error-parser.circom"
     };
 
     let out_path: &str = if args.len() > 2 {
@@ -52,18 +52,21 @@ fn main() -> io::Result<()>{
 
     let tokens = lexer.tokens;
 
+    info!("Receive Tokens:\n");
     for token in tokens.clone() {
         info!("{}",format!("{:?}", token).as_str());
     }
 
-
     let grammar_str = read_circom_file(grammar_path)?;
     let grammar = Grammar::new(&*grammar_str).unwrap();
 
-    info!("Grammar:\n{}", grammar);
+    info!("\nGrammar:\n{}", grammar);
+
+    info!("Construct LR1 Parser...\n");
 
     let parser = LR1Parser::new(grammar);
 
+    info!("Start Parsing...\n");
     let reduce_result = parser.unwrap().run_parse(&tokens);
 
     match reduce_result {

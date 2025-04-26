@@ -141,10 +141,10 @@ impl LR1Parser {
             }
         }
 
-        println!("Indexed productions:");
+        info!("Indexed productions:");
         let mut i = 0;
         while i < indexed.len() {
-            println!("{}: {:?} -> {:?}", i, indexed[i].0, &indexed[i].1);
+            info!("{}: {:?} -> {:?}", i, indexed[i].0, &indexed[i].1);
             i += 1;
         }
 
