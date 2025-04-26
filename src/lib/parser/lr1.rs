@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use log::{info, log};
+use std::fmt::format;
+use log::{error, info, log, warn};
 use std::option::Option;
 use crate::lexer::token::Token;
 use crate::parser::grammar::{Grammar, GrammarError};
@@ -485,6 +486,15 @@ impl LR1Parser {
         s
     }
 
+    fn short_display_symbol_stack(symbol_stack: &Vec<ReduceSymbol>) -> String {
+        let mut out = String::new();
+        for s in symbol_stack {
+            out += &s.symbol;
+            out += " ";
+        }
+        out
+    }
+
     // 执行语法分析
     pub fn run_parse(&self, tokens: &[Token]) -> Result<Vec<ReduceResult>, ParseError> {
         let mut input = tokens.to_vec();
@@ -522,8 +532,33 @@ impl LR1Parser {
                 t => t,
             };
 
-            info!("{}", format!("States:{:?} Symbols:{:?} Current:{} Action: {:?}",
-                state_stack, symbol_stack, current_symbol, self.action_table.get(&state).unwrap().get(current_symbol).unwrap()).as_str());
+            if let Some(state_map) = self.action_table.get(&state) {
+                if let Some(next) = state_map.get(current_symbol) {
+                    info!("{}", format!("States:{:?} Symbols:{:?} Current:{} Action: {:?}",
+                    state_stack, symbol_stack, current_symbol, next).as_str());
+                }
+                else {
+                    error!("\nError: No Action Found!\n{}",
+                        format!("Current Token: {:?}\nCurrent Symbol: {}\nSymbols in stack: {:?}\n",
+                            token,
+                            current_symbol,
+                            Self::short_display_symbol_stack(&symbol_stack)
+                        ).as_str());
+                    panic!("No Action Found!");
+                }
+            }
+            else {
+                error!("\nError: No State Found!\n{}",
+                    format!("Current Token: {:?}\nCurrent Symbol: {}\nSymbols in stack: {:?}\n",
+                        token,
+                        current_symbol,
+                        Self::short_display_symbol_stack(&symbol_stack)
+                    ).as_str());
+                panic!("No State Found!");
+            }
+
+            // info!("{}", format!("States:{:?} Symbols:{:?} Current:{} Action: {:?}",
+            //     state_stack, symbol_stack, current_symbol, self.action_table.get(&state).unwrap().get(current_symbol).unwrap()).as_str());
 
             match self.action_table.get(&state)
                 .and_then(|actions| actions.get(current_symbol))
