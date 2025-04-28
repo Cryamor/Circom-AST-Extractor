@@ -6,12 +6,14 @@ use lib::parser::lr1::{LR1Parser, ParseError, ReduceResult};
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use std::time::Instant;
 use log::info;
 use lib::ast::ast_build::build_ast;
 
 fn main() -> io::Result<()>{
 
     log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
+    let start_time = Instant::now();
 
     // let file_path = "testcase/array.circom";
     // let file_path = "testcase/1.circom";
@@ -23,12 +25,13 @@ fn main() -> io::Result<()>{
     let file_path: &str = if args.len() > 1 {
         &*args[1].clone()
     } else {
-        // "testcase/1.circom"
+        "testcase/11.circom"
         // "testcase/2.circom"
         // "testcase/3.circom"
         // "testcase/4.circom"
         // "testcase/5.circom"
-        "testcase/6.circom"
+        // "testcase/6.circom"
+        // "testcase/11.circom"
         // "testcase/1-1.circom"
         // "testcase/1-error-lexer.circom"
         // "testcase/1-error-parser.circom"
@@ -44,7 +47,8 @@ fn main() -> io::Result<()>{
 
     let content = read_circom_file(file_path)?;
 
-    info!("{}",format!("Processed content:\n{}\n", content).as_str());
+    info!("{}",format!("Processed Content:\n{}\n", content).as_str());
+    println!("Process Content...");
 
     let mut lexer = Lexer::new(content.to_string());
 
@@ -52,6 +56,7 @@ fn main() -> io::Result<()>{
 
     let tokens = lexer.tokens;
 
+    println!("Receive Tokens...");
     info!("Receive Tokens:\n");
     for token in tokens.clone() {
         info!("{}",format!("{:?}", token).as_str());
@@ -62,10 +67,15 @@ fn main() -> io::Result<()>{
 
     info!("\nGrammar:\n{}", grammar);
 
+    println!("Construct LR1 Parser...");
     info!("Construct LR1 Parser...\n");
 
     let parser = LR1Parser::new(grammar);
 
+    let construct_duration = start_time.elapsed();
+    println!("Time Cost: {:?}", construct_duration);
+
+    println!("Start Parsing...");
     info!("Start Parsing...\n");
     let reduce_result = parser.unwrap().run_parse(&tokens);
 
@@ -73,6 +83,7 @@ fn main() -> io::Result<()>{
         Ok(steps) => {
             let s = steps.clone();
             info!("\nParse succeeded! Steps:");
+            println!("Parse succeeded!");
             for step in steps {
                 info!("{:?}", step);
             }
@@ -83,10 +94,15 @@ fn main() -> io::Result<()>{
             file.write_all(json_data.as_bytes())?;
 
             info!("\nOutput json to: {}\n", out_path);
-
+            println!("Output json to: {}", out_path);
         }
         _ => {}
     }
+
+    let duration = start_time.elapsed();
+    info!("Time Cost: {:?}", duration);
+    println!("Time Cost: {:?}", duration);
+    println!("Parsing Time Cost: {:?}", duration - construct_duration);
 
     Ok(())
 }
