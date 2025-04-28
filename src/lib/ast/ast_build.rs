@@ -921,15 +921,21 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             "TEMPLATE_CONTENT" => {},
             "TEMPLATE_STMT" => {
                 let index = stmt_counters.len() - 1;
-                let index1 = param_counters.len() - 1;
-                let mut param_counter = param_counters[index1];
+                let mut param_counter = 0;
+                if r.body.iter().any(|e| e == "PARAM") {
+                    let index1 = param_counters.len() - 1;
+                    param_counter = param_counters[index1];
+                }
                 definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counters[index], &mut param_stack, &mut param_counter));
                 stmt_counters.pop();
                 param_counters.pop();
             },
             "COMPONENT_BLOCK" => {
-                let index = param_counters.len() - 1;
-                let mut param_counter = param_counters[index];
+                let mut param_counter = 0;
+                if r.body.iter().any(|e| e == "PARAM") {
+                    let index = param_counters.len() - 1;
+                    param_counter = param_counters[index];
+                }
                 main_component = Some(process_component_block(&r, &mut block_stack, &mut last, &mut param_stack, &mut param_counter));
                 param_counters.pop();
             },
