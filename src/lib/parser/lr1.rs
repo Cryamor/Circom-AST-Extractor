@@ -3,11 +3,12 @@ use std::fmt;
 use std::fmt::format;
 use log::{error, info, log, warn};
 use std::option::Option;
+use serde::{Deserialize, Serialize};
 use crate::lexer::token::Token;
 use crate::parser::grammar::{Grammar, GrammarError};
 
 // LR1项目
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct LR1Item {
     head: String,
     body: Vec<String>,
@@ -16,7 +17,7 @@ struct LR1Item {
 }
 
 // 分析表动作
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 enum Action {
     Shift(usize),
     Reduce(usize),
@@ -27,7 +28,7 @@ enum Action {
 }
 
 // LR1分析表结构
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LR1Parser {
     grammar: Grammar,
     augmented_grammar: Grammar,
@@ -53,7 +54,7 @@ pub struct ReduceSymbol {
 }
 
 // 错误处理
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParseError {
     Conflict {
         symbol: String,
@@ -122,6 +123,18 @@ impl LR1Parser {
             goto_table,
             productions,
         })
+    }
+
+    pub fn save_to_file(&self, path: &str) -> std::io::Result<()> {
+        let json_data = serde_json::to_string_pretty(self)?;
+        std::fs::write(path, json_data)?;
+        Ok(())
+    }
+
+    pub fn load_from_file(path: &str) -> std::io::Result<Self> {
+        let json_data = std::fs::read_to_string(path)?;
+        let parser: LR1Parser = serde_json::from_str(&json_data)?;
+        Ok(parser)
     }
 
     // 扩展文法

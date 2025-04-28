@@ -19,13 +19,15 @@ fn main() -> io::Result<()>{
     // let file_path = "testcase/1.circom";
     let grammar_path = "grammar/grammar.txt";
     // let out_path = "out/1.json";
+    let parser_cache_path = "cache/parser_cache.json";
 
     // 获取命令行参数
     let args: Vec<String> = env::args().collect();
     let file_path: &str = if args.len() > 1 {
         &*args[1].clone()
-    } else {
-        "testcase/11.circom"
+    }
+    else {
+        "testcase/1.circom"
         // "testcase/2.circom"
         // "testcase/3.circom"
         // "testcase/4.circom"
@@ -44,7 +46,6 @@ fn main() -> io::Result<()>{
         &*format!("out/{}.json", file_name)
     };
 
-
     let content = read_circom_file(file_path)?;
 
     info!("{}",format!("Processed Content:\n{}\n", content).as_str());
@@ -62,22 +63,40 @@ fn main() -> io::Result<()>{
         info!("{}",format!("{:?}", token).as_str());
     }
 
-    let grammar_str = read_circom_file(grammar_path)?;
-    let grammar = Grammar::new(&*grammar_str).unwrap();
+    let token_duration = start_time.elapsed();
+    println!("Time Cost: {:?}", token_duration);
 
-    info!("\nGrammar:\n{}", grammar);
+    // 可以将编译好的parser存储起来，之后直接读取使用
+    // 尝试从文件加载 LR1Parser
+    let parser: LR1Parser = if Path::new(parser_cache_path).exists() {
+        println!("Loaded parser cache...");
+        info!("Loaded parser cache...");
+        LR1Parser::load_from_file(parser_cache_path)?
+    } else {
+        // 构建 LR1Parser
+        let grammar_str = read_circom_file(grammar_path)?;
+        let grammar = Grammar::new(&*grammar_str).unwrap();
 
-    println!("Construct LR1 Parser...");
-    info!("Construct LR1 Parser...\n");
+        info!("\nGrammar:\n{}", grammar);
+        println!("Construct LR1 Parser...");
+        info!("Construct LR1 Parser...\n");
 
-    let parser = LR1Parser::new(grammar);
+        let parser = LR1Parser::new(grammar);
+
+        // 保存 LR1Parser 到文件
+        parser.clone().unwrap().save_to_file(parser_cache_path)?;
+        println!("Saved parser cache... to {:?}", parser_cache_path);
+        info!("Saved parser cache... to {:?}", parser_cache_path);
+
+        parser.unwrap()
+    };
 
     let construct_duration = start_time.elapsed();
     println!("Time Cost: {:?}", construct_duration);
 
     println!("Start Parsing...");
     info!("Start Parsing...\n");
-    let reduce_result = parser.unwrap().run_parse(&tokens);
+    let reduce_result = parser.run_parse(&tokens);
 
     match reduce_result {
         Ok(steps) => {

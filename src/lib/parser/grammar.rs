@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Grammar {
     pub productions: HashMap<String, Vec<Vec<String>>>,
     pub terminals: HashSet<String>,
@@ -12,7 +13,7 @@ pub struct Grammar {
     pub grammar_str : String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GrammarError {
     InvalidProduction(String),
     MissingArrow(String),
