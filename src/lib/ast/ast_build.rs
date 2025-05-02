@@ -30,8 +30,11 @@ fn process_signal_stmt(r: &ReduceResult,
     if r.body.contains(&"INPUT".to_string()) {
         xtype = VariableType::Signal(SignalType::Input, vec![]);
     }
-    else {
+    else if r.body.contains(&"OUTPUT".to_string()) {
         xtype = VariableType::Signal(SignalType::Output, vec![]);
+    }
+    else {
+        xtype = VariableType::Signal(SignalType::Intermediate, vec![]);
     }
 
     let id = id_stack.pop().unwrap();
