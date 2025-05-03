@@ -2,10 +2,10 @@ use std::ops::Range;
 use serde::de::Unexpected::Option;
 use serde::Serialize;
 use crate::ast::ast::*;
-use crate::ast::ast::Definition::Template;
+use crate::ast::ast::Definition::{Function, Template};
 use crate::ast::ast::Expression::{Call, InfixOp, Number, Variable};
 use crate::ast::ast::Sign::NoSign;
-use crate::ast::ast::Statement::{Block, IfThenElse, Substitution, While};
+use crate::ast::ast::Statement::{Block, IfThenElse, Return, Substitution, While};
 use crate::lexer::token::Token;
 use crate::parser::lr1::ReduceResult;
 
@@ -259,6 +259,65 @@ fn process_comp_stmt(r: &ReduceResult,
     };
 
     block_stack.push(i_b);
+}
+
+fn process_ret_stmt(r: &ReduceResult,
+                    expr_stack: &mut Vec<Expression>,
+                    block_stack: &mut Vec<Statement>)
+{
+    let start = r.token.iter().find(|t| t.token_type == "RETURN").map(|t| &t.start).unwrap().clone();
+    let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap().clone();
+    let meta = Meta::new(start, end.clone());
+    let ex = expr_stack.pop().unwrap();
+    let ret : Statement = Return { meta: meta.clone(), value: ex.clone() };
+    block_stack.push(ret);
+}
+
+fn process_func_block(r: &ReduceResult,
+                      block_stack: &mut Vec<Statement>,
+                      stmt_counter: &mut usize,
+                      param_stack: &mut Vec<Token>,
+                      param_counter: &mut usize) -> Definition
+{
+    let start = r.token.iter().find(|t| t.token_type == "FUNCTION").map(|t| &t.start).unwrap();
+    let end = r.token.iter().find(|t| t.token_type == "RBRACE").map(|t| &t.end).unwrap();
+    let arg = r.token.iter().find(|t| t.token_type == "LBRACE").map(|t| &t.end).unwrap();
+    let meta = Meta::new(start.clone(), end.clone());
+    let meta1 = Meta::new(arg.clone(), end.clone());
+    let mut args: Vec<String> = vec![];
+    let id = r.token.iter().find(|t| t.token_type == "ID").map(|t| &t.value).unwrap();
+
+    if r.body.contains(&"PARAM".to_string()) {
+        for _ in 0..*param_counter {
+            let p = param_stack.pop().unwrap();
+            args.push(p.value.clone());
+        }
+        *param_counter = 0;
+    }
+
+    let mut block_stmts = vec![];
+    for _ in 0..*stmt_counter {
+        block_stmts.push(block_stack.pop().unwrap());
+    }
+    *stmt_counter = 0;
+
+    block_stmts.reverse();
+    args.reverse();
+
+    let mut block: Statement = Block {
+        meta: meta1.clone(),
+        stmts: block_stmts.clone(),
+    };
+
+    let mut temp: Definition = Function {
+        meta: meta.clone(),
+        name: id.to_string(),
+        args: args.clone(),
+        arg_location: *arg..*arg,
+        body: block.clone(),
+    };
+
+    temp
 }
 
 fn process_template_block(r: &ReduceResult,
@@ -931,7 +990,26 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                 }
                 definitions.push(process_template_block(&r, &mut block_stack, &mut stmt_counters[index], &mut param_stack, &mut param_counter));
                 stmt_counters.pop();
-                param_counters.pop();
+                if r.body.iter().any(|e| e == "PARAM") {
+                    param_counters.pop();
+                }
+            },
+            "FUNC_STMT" => {
+                let index = stmt_counters.len() - 1;
+                let mut param_counter = 0;
+                if r.body.iter().any(|e| e == "PARAM") {
+                    let index1 = param_counters.len() - 1;
+                    param_counter = param_counters[index1];
+                }
+                definitions.push(process_func_block(&r, &mut block_stack, &mut stmt_counters[index], &mut param_stack, &mut param_counter));
+                stmt_counters.pop();
+                if r.body.iter().any(|e| e == "PARAM") {
+                    param_counters.pop();
+                }
+
+            },
+            "RET_STMT" => {
+                process_ret_stmt(&r, &mut expr_stack, &mut block_stack);
             },
             "COMPONENT_BLOCK" => {
                 let mut param_counter = 0;

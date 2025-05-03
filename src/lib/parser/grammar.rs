@@ -125,11 +125,11 @@ fn build_token_dict() -> HashMap<&'static str, bool> {
     let non_terminals = vec![
         "PROGRAM", "HEADER", "PROG", "TEMPLATE_BLOCK", "TEMPLATE_STMT",
         "PARAM", "PARAM_", "TEMPLATE_CONTENT", "STMTS", "STMT", "SIGNAL_STMT",
-        "ID_OR_ARRAY", "ID_OR_NUM", "COMPONENT_ID", "CI_", "VAR_STMT", "VAR_",
+        "ID_OR_ARRAY", "ID_OR_NUM", "COMPONENT_ID", "VAR_STMT", "VAR_",
         "VAR_DEF", "VAR_ASSIGN", "ASSIGN_STMT", "EXPR", "C_ASSIGN_STMT", "IF_STMT",
-        "M_IF", "N_IF", "M_ELSE", "WHILE_STMT", "M_BEFORE_WHILE", "M_AFTER_WHILE",
-        "FOR_STMT", "FOR_COND", "M_FOR", "CONDITION", "COMPONENT_BLOCK", "ASSIGN",
-        "C_ASSIGN", "REL", "PLUS", "OP", "COMPONENT_STMT", "COMP_", "COMP_DEF"
+        "WHILE_STMT", "FOR_STMT", "FOR_COND", "CONDITION", "COMPONENT_BLOCK", "ASSIGN",
+        "C_ASSIGN", "REL", "PLUS", "OP", "COMPONENT_STMT", "COMP_", "COMP_DEF",
+        "FUNC_STMT", "RET_STMT", "T_OR_F"
     ];
     for nt in non_terminals {
         dict.insert(nt, false);
@@ -139,7 +139,7 @@ fn build_token_dict() -> HashMap<&'static str, bool> {
     let terminals = vec![
         // 保留字
         "PRAGMA", "CIRCOM", "VERSION", "CUSTOM_TEMPLATES", "TEMPLATE", "COMPONENT",
-        "MAIN", "SIGNAL", "INPUT", "OUTPUT", "VAR", "IF", "ELSE", "WHILE", "FOR",
+        "MAIN", "SIGNAL", "INPUT", "OUTPUT", "VAR", "IF", "ELSE", "WHILE", "FOR", "FUNCTION", "RETURN",
 
         // 运算符
         "=", "+=", "-=", "*=", "/=", "QUOTIENT_ASSIGN", "%=", "&=", "BITWISE_OR_ASSIGN", "^=", "~=", "<<=", ">>=",
