@@ -106,7 +106,7 @@ pub const RULES: &[(&str, &str)] = &[
 
     // 标识符
     ("VERSION", r"\b\d+(\.\d+)+\b"),
-    ("ID", r"\b_[a-zA-Z][a-zA-Z0-9_$]*\b|\b[a-zA-Z][a-zA-Z0-9_$]*\b"),
+    ("ID", r"\b_*[a-zA-Z][a-zA-Z0-9_$]*\b|\b[a-zA-Z][a-zA-Z0-9_$]*\b"),
     ("NUM", r"\b\d+\b"),
 
     // 其他
