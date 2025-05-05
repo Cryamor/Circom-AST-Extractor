@@ -1,4 +1,4 @@
-use std::{env, io, mem};
+use std::{env, fs, io, mem};
 use lib::input::input::*;
 use lib::lexer::lexer::Lexer;
 use lib::parser::grammar::Grammar;
@@ -20,6 +20,8 @@ fn main() -> io::Result<()>{
     let grammar_path = "grammar/grammar.txt";
     // let out_path = "out/1.json";
     let parser_cache_path = "cache/parser_cache.json";
+    let parser_cache_folder = "cache";
+    let output_folder = "out";
 
     // 获取命令行参数
     let args: Vec<String> = env::args().collect();
@@ -88,6 +90,12 @@ fn main() -> io::Result<()>{
         let parser = LR1Parser::new(grammar);
 
         // 保存 LR1Parser 到文件
+        if fs::metadata(parser_cache_folder).is_err() {
+            match fs::create_dir_all(parser_cache_folder) {
+                Ok(_) => println!("Create folder: {:?}", parser_cache_folder),
+                Err(_) => panic!("Could not create folder"),
+            }
+        }
         parser.clone().unwrap().save_to_file(parser_cache_path)?;
         println!("Saved parser cache... to {:?}", parser_cache_path);
         info!("Saved parser cache... to {:?}", parser_cache_path);
@@ -113,6 +121,13 @@ fn main() -> io::Result<()>{
 
             let ast = build_ast(s);
             let json_data = serde_json::to_string_pretty(&ast)?;
+
+            if fs::metadata(output_folder).is_err() {
+                match fs::create_dir_all(output_folder) {
+                    Ok(_) => println!("Create folder: {:?}", output_folder),
+                    Err(_) => panic!("Could not create folder"),
+                }
+            }
             let mut file = File::create(out_path)?;
             file.write_all(json_data.as_bytes())?;
 
