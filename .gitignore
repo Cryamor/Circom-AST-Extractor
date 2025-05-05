@@ -42,4 +42,5 @@ config.toml
 /target/
 /out/
 main
+main.exe
 /cache/
