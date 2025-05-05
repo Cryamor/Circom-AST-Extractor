@@ -7,17 +7,17 @@ root:
   level: info
   appenders:
 #    - stdout
-    - file
+#    - file
 #    - rolling_file
 
 appenders:
-  file:
-    # 输出到文件
-    kind: file
-    path: logs/1.log
-    append: false
-    encoder:
-      pattern: "{m}{n}"
+#  file:
+#    # 输出到文件
+#    kind: file
+#    path: logs/1.log
+#    append: false
+#    encoder:
+#      pattern: "{m}{n}"
 
 
 #  stdout:
