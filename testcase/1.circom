@@ -1,3 +1,4 @@
+// 官方最简用例
 pragma circom 2.0.0;
 
 template Multiplier() {

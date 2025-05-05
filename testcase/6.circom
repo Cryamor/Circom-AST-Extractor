@@ -1,15 +1,25 @@
+// while循环
 pragma circom 2.0.0;
 
-template A(M) {
-    signal input in;
-    signal output out;
-    out <== in;
+template C(x) {
+    while ( x != 3) {
+        x = 3;
+    }
 }
 
-template B(N) {
-    signal output out;
-    component a,b=A(1);
-    a = A(5);
+template D() {
+    var i = 1;
+    while ( i != 3) {
+        i = 3;
+    }
 }
 
-component main = B(1);
+template E() {
+    var a=1, b=20;
+    while (a<b) {
+        a+=2;
+        b-=1;
+    }
+}
+
+component main = C(1);

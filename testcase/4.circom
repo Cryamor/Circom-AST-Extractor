@@ -1,24 +1,11 @@
+// 变量声明与赋值
 pragma circom 2.0.0;
 
-template A() {
-    signal input a;
-    signal input b;
-    signal output c;
-    c <== a * b;
+template Multiplier() {
+    var a, b = 3;
+    var x=1;
+    var y,z,w;
+    var j,k,l,p=123;
 }
 
-template B(N) {
-    signal input a;
-    signal input b;
-    signal output c;
-    c <== a * b;
-}
-
-template C(x,y) {
-    signal input d;
-    signal input e;
-    signal output f;
-    e <== d * f;
-}
-
-component main = B(2);
+component main = Multiplier();

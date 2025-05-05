@@ -1,21 +1,11 @@
+// 含参数模版
 pragma circom 2.0.0;
 
-template Multiplier() {
+template Multiplier(M,N) {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
-
-    if ( a > 3 ) {
-        a = 3;
-    }
-    else {
-        b += 3;
-    }
-
-    if ( c == 1 ) {
-        c -= 1;
-    }
 }
 
-component main = Multiplier();
+component main = Multiplier(5,6);

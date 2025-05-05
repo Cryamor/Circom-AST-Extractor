@@ -1,185 +1,206 @@
 pragma circom 2.0.0;
 
-template A2() {
+template A() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template B2() {
+template B() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template C2() {
+template C() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template D2() {
+template D() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template E2() {
+template E() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template F2() {
+template F() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template G2() {
+template G() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template H2() {
+template H() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template I2() {
+template I() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template J2() {
+template J() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template K2() {
+template K() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template L2() {
+template L() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template M2() {
+template M() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template N2() {
+template N() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template O2() {
+template O() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template P2() {
+template P() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template Q2() {
+template Q() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template R2() {
+template R() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template S2() {
+template S() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template T2() {
+template T() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template U2() {
+template U() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template V2() {
+template V() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template W2() {
+template W() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template X2() {
+template X() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template Y2() {
+template Y() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-template Z2() {
+template Z() {
     signal input a;
     signal input b;
     signal output c;
     c <== a * b;
 }
 
-component main = A2();
+template AA() {
+    signal input a;
+    signal input b;
+    signal output c;
+    c <== a * b;
+}
+
+template BB() {
+    signal input a;
+    signal input b;
+    signal output c;
+    c <== a * b;
+}
+
+template CC() {
+    signal input a;
+    signal input b;
+    signal output c;
+    c <== a * b;
+}
+
+component main = A();

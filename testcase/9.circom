@@ -1,32 +1,26 @@
+// 函数与模版混合与调用
 pragma circom 2.0.0;
 
-template AA(N) {
-   signal input a;
-   signal input b;
-   signal output c;
-   c <== nn();
-}
-
-template BB(N) {
+template Multiplier() {
    signal input a;
    signal input b;
    signal output c;
    c <== nn(b);
 }
 
-template CC() {
+function nn(a) {
+    return a+1;
+}
+
+template Multiplier2() {
    signal input a;
    signal input b;
    signal output c;
    c <== nn(b);
 }
 
-template DD() {
-   signal input a;
-   signal input b;
-   signal output c;
-   c <== nn();
+function mm(a) {
+    return a+1;
 }
 
-
-component main = AA();
+component main = Multiplier();

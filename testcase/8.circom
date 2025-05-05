@@ -1,25 +1,16 @@
+// 模版调用
 pragma circom 2.0.0;
 
-template Multiplier() {
-   signal input a;
-   signal input b;
-   signal output c;
-   c <== nn(b);
+template A(M) {
+    signal input in;
+    signal output out;
+    out <== in;
 }
 
-function nn(a) {
-    return a+1;
+template B(N) {
+    signal output out;
+    component a,b=A(1);
+    a = A(5);
 }
 
-template Multiplier2() {
-   signal input a;
-   signal input b;
-   signal output c;
-   c <== nn(b);
-}
-
-function mm(a) {
-    return a+1;
-}
-
-component main = Multiplier();
+component main = B(1);
