@@ -5,7 +5,7 @@ template Multiplier(M,N) {
     signal input a;
     signal input b;
     signal output c;
-    c <== a * b;
+    c <== (a *b) * b;
 }
 
 component main = Multiplier(5,6);
