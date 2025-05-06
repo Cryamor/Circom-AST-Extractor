@@ -314,19 +314,26 @@ impl LR1Parser {
                         else {  // 处理A -> ... .BC的情况
                             let beta = &item.body[item.dot_pos+1..];
                             let lookaheads = Self::compute_lookaheads(beta, &item.lookahead, first);
-                            for production in grammar.productions.get(symbol).unwrap() {
-                                for la in &lookaheads {
-                                    let new_item = LR1Item {
-                                        head: symbol.clone(),
-                                        body: production.clone(),
-                                        dot_pos: 0,
-                                        lookahead: la.clone(),
-                                    };
-                                    if !closure.contains(&new_item) {
-                                        closure.insert(new_item);
-                                        changed = true;
+                            if let Some(pros) = grammar.productions.get(symbol) {
+                                for production in pros {
+                                    for la in &lookaheads {
+                                        let new_item = LR1Item {
+                                            head: symbol.clone(),
+                                            body: production.clone(),
+                                            dot_pos: 0,
+                                            lookahead: la.clone(),
+                                        };
+                                        if !closure.contains(&new_item) {
+                                            closure.insert(new_item);
+                                            changed = true;
+                                        }
                                     }
                                 }
+                            }
+                            else {
+                                error!("\nError: No production found\n{}",
+                                format!("symbol: {} item:{:?}", symbol, item).as_str());
+                                panic!("Error: No production found!");
                             }
                         }
 

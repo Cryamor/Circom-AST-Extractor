@@ -18,6 +18,7 @@ fn main() -> io::Result<()>{
     // let file_path = "testcase/array.circom";
     // let file_path = "testcase/1.circom";
     let grammar_path = "grammar/grammar.txt";
+    // let grammar_path = "grammar/grammar-error.txt";
     // let out_path = "out/1.json";
     let parser_cache_path = "cache/parser_cache.json";
     let parser_cache_folder = "cache";
@@ -42,10 +43,10 @@ fn main() -> io::Result<()>{
         // "testcase/11.circom"
         // "testcase/13.circom"
         // "testcase/28.circom"
-        "testcase/30.circom"
+        // "testcase/30.circom"
         // "testcase/1-1.circom"
-        // "testcase/1-error-lexer.circom"
-        // "testcase/1-error-parser.circom"
+        "testcase/error1.circom"
+        // "testcase/error2.circom"
     };
 
     let out_path: &str = if args.len() > 2 {
