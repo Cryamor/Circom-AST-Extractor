@@ -1,7 +1,9 @@
 use std::ops::Range;
+use log::error;
 use serde::de::Unexpected::Option;
 use serde::Serialize;
 use crate::ast::ast::*;
+use crate::ast::ast::Access::ComponentAccess;
 use crate::ast::ast::Definition::{Function, Template};
 use crate::ast::ast::Expression::{Call, InfixOp, Number, Variable};
 use crate::ast::ast::Sign::NoSign;
@@ -503,12 +505,13 @@ fn process_expr(r: &ReduceResult,
     else if r.body.contains(&"PLUS".to_string()) {
         // EXPR -> PLUS NUM
     }
-    else if r.body.contains(&"ID_OR_ARRAY".to_string()) {
+    else if r.body.contains(&"ID_OR_ARRAY".to_string()) && r.body.contains(&"(".to_string()) {
+        // -> ID_OR_ARRAY ( PARAM ) | ID_OR_ARRAY ( )
         let i = id_stack.pop().unwrap();
         let mut args = vec![];
         let end = r.token.iter().find(|t| t.token_type == "RPAREN").map(|t| &t.end).unwrap();
         if r.body.contains(&"PARAM".to_string()) {
-            // EXPR -> ID ( PARAM )
+            // EXPR -> ID_OR_ARRAY ( PARAM )
             let counter = param_counters.pop().unwrap();
             for _ in 0..counter {
                 let p = param_stack.pop().unwrap();
@@ -537,6 +540,35 @@ fn process_expr(r: &ReduceResult,
             args: args.clone(),
         };
         expr_stack.push(ca);
+    }
+    else if r.body.contains(&"DOT".to_string()) {
+        let member = id_stack.pop().unwrap();
+        let i = id_stack.pop().unwrap();
+        match i.token_type.as_str() {
+            "ID" => {
+                match member.token_type.as_str() {
+                    "ID" => {
+                        let ac: Access = ComponentAccess(member.value.clone());
+                        let ex: Expression = Variable {
+                            meta: Meta::new(i.start.clone(), i.end.clone()),
+                            name: i.value.clone(),
+                            access: vec![ac],
+                        };
+                        expr_stack.push(ex);
+                    }
+                    _ => {
+                        panic!("Error: Cannot Access .NUM");
+                        error!("\nError: Try to Access Num!\n{}",
+                        format!("Try to Access Num {:?}", member).as_str());
+                    }
+                }
+            }
+            _ => {
+                panic!("Error: Num Cannot Be Accessed");
+                error!("\nError: Try to Access Num!\n{}",
+                        format!("Try to Access Num {:?}", i).as_str());
+            }
+        }
     }
     else {
         // EXPR -> ( EXPR )
