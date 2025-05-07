@@ -41,6 +41,13 @@ pub const RULES: &[(&str, &str)] = &[
     ("CUSTOM_TEMPLATES", r"\bcustom_templates\b"),
     ("MAIN", r"\bmain\b"),
 
+    // 约束运算符
+    ("CIRCOM_L_ASSIGN", r"<--"),
+    ("CIRCOM_R_ASSIGN", r"-->"),
+    ("CIRCOM_L_CONSTRAINT_ASSIGN", r"<=="),
+    ("CIRCOM_R_CONSTRAINT_ASSIGN", r"==>"),
+    ("CIRCOM_CONSTRAINT", r"==="),
+
     // 运算符
     ("INCREMENT", r"\+\+"),        // 自增 ++
     ("DECREMENT", r"--"),          // 自减 --
@@ -72,12 +79,6 @@ pub const RULES: &[(&str, &str)] = &[
     ("LEFT_SHIFT", r"<<"),         // 左移 <<
     ("RIGHT_SHIFT", r">>"),        // 右移 >>
 
-    // 约束运算符
-    ("CIRCOM_L_ASSIGN", r"<--"),
-    ("CIRCOM_R_ASSIGN", r"-->"),
-    ("CIRCOM_L_CONSTRAINT_ASSIGN", r"<=="),
-    ("CIRCOM_R_CONSTRAINT_ASSIGN", r"==>"),
-    ("CIRCOM_CONSTRAINT", r"==="),
 
     // 比较运算符
     ("EQUAL", r"=="),              // 等于 ==

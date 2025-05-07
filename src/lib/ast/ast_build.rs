@@ -7,7 +7,7 @@ use crate::ast::ast::Access::ComponentAccess;
 use crate::ast::ast::Definition::{Function, Template};
 use crate::ast::ast::Expression::{Call, InfixOp, Number, Variable};
 use crate::ast::ast::Sign::NoSign;
-use crate::ast::ast::Statement::{Block, IfThenElse, Return, Substitution, While};
+use crate::ast::ast::Statement::{Block, ConstraintEquality, IfThenElse, Return, Substitution, While};
 use crate::lexer::token::Token;
 use crate::parser::lr1::ReduceResult;
 
@@ -557,16 +557,16 @@ fn process_expr(r: &ReduceResult,
                         expr_stack.push(ex);
                     }
                     _ => {
-                        panic!("Error: Cannot Access .NUM");
                         error!("\nError: Try to Access Num!\n{}",
-                        format!("Try to Access Num {:?}", member).as_str());
+                            format!("Try to Access Num {:?}", member).as_str());
+                        panic!("Error: Cannot Access .NUM");
                     }
                 }
             }
             _ => {
-                panic!("Error: Num Cannot Be Accessed");
                 error!("\nError: Try to Access Num!\n{}",
                         format!("Try to Access Num {:?}", i).as_str());
+                panic!("Error: Num Cannot Be Accessed");
             }
         }
     }
@@ -576,6 +576,41 @@ fn process_expr(r: &ReduceResult,
 
 }
 
+// fn process_c_assign_stmt(r: &ReduceResult,
+//                          id_stack: &mut Vec<Token>,
+//                          expr_stack: &mut Vec<Expression>,
+//                          block_stack: &mut Vec<Statement>,
+//                          op_stack: &mut Vec<Token>)
+// {
+//     let mut end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap().clone();
+//     let i = id_stack.pop().unwrap();
+//     let mut start = i.start.clone();
+//     let mut meta = Meta::new(start, end);
+//
+//     let ex = expr_stack.pop().unwrap();
+//
+//     let op = op_stack.pop().unwrap();
+//     let mut aop: AssignOp;
+//     match op.value.as_str() {
+//         "===" => aop = AssignOp::AssignConstraintSignal,
+//         "<==" => aop = AssignOp::AssignConstraintSignal,
+//         "==>" => aop = AssignOp::AssignConstraintSignal,
+//         "<--" => aop = AssignOp::AssignSignal,
+//         "-->" => aop = AssignOp::AssignSignal,
+//         _ => aop = AssignOp::AssignSignal,
+//     }
+//
+//     let substitution: Statement = Substitution {
+//         meta: meta.clone(),
+//         var: i.value.clone(),
+//         access: vec![],
+//         op: aop.clone(),
+//         rhe: ex.clone(),
+//     };
+//
+//     block_stack.push(substitution);
+// }
+
 fn process_c_assign_stmt(r: &ReduceResult,
                          id_stack: &mut Vec<Token>,
                          expr_stack: &mut Vec<Expression>,
@@ -583,32 +618,86 @@ fn process_c_assign_stmt(r: &ReduceResult,
                          op_stack: &mut Vec<Token>)
 {
     let mut end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap().clone();
-    let i = id_stack.pop().unwrap();
-    let mut start = i.start.clone();
+    let mut start = 0;
+
+    let ex_r = expr_stack.pop().unwrap();  // right
+    let ex_l = expr_stack.pop().unwrap();  // left
+
+    if let Expression::InfixOp { meta, .. } = ex_l.clone() {
+        start = meta.start.clone();
+    }
     let mut meta = Meta::new(start, end);
 
-    let ex = expr_stack.pop().unwrap();
-
+    enum VarPos {
+        Left,
+        Right,
+        NoVar
+    }
+    let mut var_pos: VarPos = VarPos::Left;
     let op = op_stack.pop().unwrap();
     let mut aop: AssignOp;
     match op.value.as_str() {
-        "===" => aop = AssignOp::AssignConstraintSignal,
+        "===" => {
+            aop = AssignOp::AssignConstraintSignal;
+            var_pos = VarPos::NoVar;
+        },
         "<==" => aop = AssignOp::AssignConstraintSignal,
-        "==>" => aop = AssignOp::AssignConstraintSignal,
+        "==>" => {
+            aop = AssignOp::AssignConstraintSignal;
+            var_pos = VarPos::Right;
+        },
         "<--" => aop = AssignOp::AssignSignal,
-        "-->" => aop = AssignOp::AssignSignal,
+        "-->" => {
+            aop = AssignOp::AssignSignal;
+            var_pos = VarPos::Right;
+        },
         _ => aop = AssignOp::AssignSignal,
     }
 
-    let substitution: Statement = Substitution {
-        meta: meta.clone(),
-        var: i.value.clone(),
-        access: vec![],
-        op: aop.clone(),
-        rhe: ex.clone(),
-    };
-
-    block_stack.push(substitution);
+    match var_pos {
+        VarPos::Left => {
+            if let Expression::Variable { name, access, .. } = ex_l.clone() {
+                let substitution: Statement = Substitution {
+                    meta: meta.clone(),
+                    var: name.clone(),
+                    access: access.clone(),
+                    op: aop.clone(),
+                    rhe: ex_r.clone(),
+                };
+                block_stack.push(substitution);
+            }
+            else {
+                error!("\nError: Cannot Assign Constraint!\n{}",
+                    format!("Try to Assign Constraint to {:?}", ex_l).as_str());
+                panic!("Cannot Assign Constraint");
+            }
+        }
+        VarPos::Right => {
+            if let Expression::Variable { name, access, .. } = ex_r.clone() {
+                let substitution: Statement = Substitution {
+                    meta: meta.clone(),
+                    var: name.clone(),
+                    access: access.clone(),
+                    op: aop.clone(),
+                    rhe: ex_l.clone(),
+                };
+                block_stack.push(substitution);
+            }
+            else {
+                error!("\nError: Cannot Assign Constraint!\n{}",
+                    format!("Try to Assign Constraint to {:?}", ex_r).as_str());
+                panic!("Cannot Assign Constraint");
+            }
+        }
+        VarPos::NoVar => {
+            let substitution: Statement = ConstraintEquality {
+                meta: meta.clone(),
+                lhe: ex_l.clone(),
+                rhe: ex_r.clone(),
+            };
+            block_stack.push(substitution);
+        }
+    }
 }
 
 fn process_cond(r: &ReduceResult,
