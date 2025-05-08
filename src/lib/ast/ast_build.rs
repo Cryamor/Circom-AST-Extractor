@@ -71,10 +71,41 @@ fn process_assign_stmt(r: &ReduceResult,
     let start = i.start.clone();
     let end = r.token.iter().find(|t| t.token_type == "SEMICOLON").map(|t| &t.end).unwrap().clone();
     let mut meta = Meta::new(start, end);
+    let mut infixop: ExpressionInfixOpcode = ExpressionInfixOpcode::Add;
+
+    if r.body.contains(&"++".to_string()) || r.body.contains(&"--".to_string()) {
+        match r.body[1].as_str() {
+            "++" => infixop = ExpressionInfixOpcode::Add,
+            "--" => infixop = ExpressionInfixOpcode::Sub,
+            _ => infixop = ExpressionInfixOpcode::Add,
+        }
+        let lhe = Variable {
+            meta: meta.clone(),
+            name: var_name.clone(),
+            access: vec![],
+        };
+        let rhe = Number(meta.clone(), Num::new(NoSign, vec![1]));
+        let rhe_1 = InfixOp {
+            meta: meta.clone(),
+            lhe: Box::new(lhe.clone()),
+            infix_op: infixop,
+            rhe: Box::new(rhe.clone()),
+        };
+        let substitution: Statement = Substitution {
+            meta: meta.clone(),
+            var: var_name.clone(),
+            access: vec![],
+            op: AssignOp::AssignVar,
+            rhe: rhe_1.clone(),
+        };
+
+        block_stack.push(substitution);
+        return;
+    }
+
     let ex = expr_stack.pop().unwrap();
     let assign = assign_stack.pop().unwrap();
     let mut rhe: Expression = ex.clone();
-    let mut infixop: ExpressionInfixOpcode = ExpressionInfixOpcode::Add;
     if assign.value == "=" {
         let substitution: Statement = Substitution {
             meta: meta.clone(),
@@ -874,8 +905,8 @@ fn process_for_stmt(r: &ReduceResult,
     block_stmts.reverse();
     block_stmts.push(p3.clone());
 
-    // p1转化为initialization block, counter+=1
-    block_stack.push(p1.clone());
+    // p1转化为initialization block
+    // block_stack.push(p1.clone());
 
     let while_block: Statement = Block{
         meta: meta.clone(),
@@ -888,7 +919,9 @@ fn process_for_stmt(r: &ReduceResult,
         stmt: Box::new(while_block.clone()),
     };
 
-    block_stack.push(while_stmt);
+    let block = Block{ meta:meta.clone(), stmts: vec![p1.clone(), while_stmt.clone()] };
+
+    block_stack.push(block);
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -918,55 +951,35 @@ fn process_for_cond(r: &ReduceResult,
     // ID_OR_ARRAY ASSIGN EXPR
     let i = id_stack.pop().unwrap();
     let var_name = i.value.clone();
-    let ex = expr_stack.pop().unwrap();
-    let assign = assign_stack.pop().unwrap();
-    let start = i.start.clone();
-    let mut end = start.clone();
-    if let Expression::InfixOp { meta, .. } = ex.clone() {
-        end = meta.end;
-    }
-    let mut meta = Meta::new(start.clone(), end.clone());  // incorrect
-    let mut rhe: Expression = ex.clone();
-    let mut infixop: ExpressionInfixOpcode = ExpressionInfixOpcode::Add;
-    if assign.value == "=" {
-        let substitution: Statement = Substitution {
-            meta: meta.clone(),
-            var: var_name.clone(),
-            access: vec![],
-            op: AssignOp::AssignVar,
-            rhe: rhe.clone(),
-        };
-        p3 = substitution.clone();
-    }
-    else {
-        match assign.value.as_str() {
-            "+=" => infixop = ExpressionInfixOpcode::Add,
-            "-=" => infixop = ExpressionInfixOpcode::Sub,
-            "*=" => infixop = ExpressionInfixOpcode::Mul,
-            "/=" => infixop = ExpressionInfixOpcode::Div,
-            "%=" => infixop = ExpressionInfixOpcode::Mod,
-            "QUOTIENT_ASSIGN" => infixop = ExpressionInfixOpcode::IntDiv,
-            "&=" => infixop = ExpressionInfixOpcode::BitAnd,
-            "BITWISE_OR_ASSIGN" => infixop = ExpressionInfixOpcode::BitOr,
-            "^=" => infixop = ExpressionInfixOpcode::BitXor,
-            "<<=" => infixop = ExpressionInfixOpcode::ShiftL,
-            ">>=" => infixop = ExpressionInfixOpcode::ShiftR,
-            _ => {}
+    // ++ or --
+    if r.body.iter().any(|e| e == "++") || r.body.iter().any(|e| e == "--") {
+        let mut infixop: ExpressionInfixOpcode = ExpressionInfixOpcode::Add;
+        let start = i.start.clone();
+        let mut end = i.end.clone();
+        match r.body[4].as_str() {
+            "++" => {
+                infixop = ExpressionInfixOpcode::Add;
+                end = r.token.iter().find(|t| t.token_type == "INCREMENT").unwrap().end.clone();
+            }
+            "--" => {
+                infixop = ExpressionInfixOpcode::Sub;
+                end = r.token.iter().find(|t| t.token_type == "DECREMENT").unwrap().end.clone();
+            },
+            _ => infixop = ExpressionInfixOpcode::Add,
         }
-
+        let meta = Meta::new(start.clone(), end.clone());
         let lhe = Variable {
             meta: meta.clone(),
             name: var_name.clone(),
             access: vec![],
         };
-
+        let rhe = Number(meta.clone(), Num::new(NoSign, vec![1]));
         let rhe_1: Expression = InfixOp {
             meta: meta.clone(),
             lhe: Box::new(lhe.clone()),
             infix_op: infixop.clone(),
             rhe: Box::new(rhe.clone()),
         };
-
         let substitution: Statement = Substitution {
             meta: meta.clone(),
             var: var_name.clone(),
@@ -976,6 +989,67 @@ fn process_for_cond(r: &ReduceResult,
         };
 
         p3 = substitution.clone();
+    }
+    else {
+        let ex = expr_stack.pop().unwrap();
+        let assign = assign_stack.pop().unwrap();
+        let start = i.start.clone();
+        let mut end = start.clone();
+        if let Expression::InfixOp { meta, .. } = ex.clone() {
+            end = meta.end;
+        }
+        let mut meta = Meta::new(start.clone(), end.clone());
+        let mut rhe: Expression = ex.clone();
+        let mut infixop: ExpressionInfixOpcode = ExpressionInfixOpcode::Add;
+        if assign.value == "=" {
+            let substitution: Statement = Substitution {
+                meta: meta.clone(),
+                var: var_name.clone(),
+                access: vec![],
+                op: AssignOp::AssignVar,
+                rhe: rhe.clone(),
+            };
+            p3 = substitution.clone();
+        }
+        else {
+            match assign.value.as_str() {
+                "+=" => infixop = ExpressionInfixOpcode::Add,
+                "-=" => infixop = ExpressionInfixOpcode::Sub,
+                "*=" => infixop = ExpressionInfixOpcode::Mul,
+                "/=" => infixop = ExpressionInfixOpcode::Div,
+                "%=" => infixop = ExpressionInfixOpcode::Mod,
+                "QUOTIENT_ASSIGN" => infixop = ExpressionInfixOpcode::IntDiv,
+                "&=" => infixop = ExpressionInfixOpcode::BitAnd,
+                "BITWISE_OR_ASSIGN" => infixop = ExpressionInfixOpcode::BitOr,
+                "^=" => infixop = ExpressionInfixOpcode::BitXor,
+                "<<=" => infixop = ExpressionInfixOpcode::ShiftL,
+                ">>=" => infixop = ExpressionInfixOpcode::ShiftR,
+                _ => {}
+            }
+
+            let lhe = Variable {
+                meta: meta.clone(),
+                name: var_name.clone(),
+                access: vec![],
+            };
+
+            let rhe_1: Expression = InfixOp {
+                meta: meta.clone(),
+                lhe: Box::new(lhe.clone()),
+                infix_op: infixop.clone(),
+                rhe: Box::new(rhe.clone()),
+            };
+
+            let substitution: Statement = Substitution {
+                meta: meta.clone(),
+                var: var_name.clone(),
+                access: vec![],
+                op: AssignOp::AssignVar,
+                rhe: rhe_1.clone(),
+            };
+
+            p3 = substitution.clone();
+        }
     }
 
     let fc = ForCond::new(p1, p2, p3);
@@ -1011,7 +1085,7 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
 
     let mut stmt_counters : Vec<usize> = vec![];
     let mut param_counters: Vec<usize> = vec![];
-    let mut counter_flag: bool = false;  // 判断counter是否需要额外+1
+    // let mut counter_flag: bool = false;  // 判断counter是否需要额外+1
 
     for r in results {
         match r.head.clone().as_str() {
@@ -1095,11 +1169,6 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
                     let index = stmt_counters.len() - 1;
                     stmt_counters[index] += 1;
                 }
-                if counter_flag {
-                    let index = stmt_counters.len() - 1;
-                    stmt_counters[index] += 1;
-                    counter_flag = false;
-                }
             },
             "TEMPLATE_CONTENT" => {},
             "TEMPLATE_STMT" => {
@@ -1175,7 +1244,6 @@ pub fn build_ast(results: Vec<ReduceResult>) -> AST {
             },
             "FOR_STMT" => {
                 process_for_stmt(&r, &mut for_cond_stack, &mut stmt_counters, &mut block_stack);
-                counter_flag = true;
             },
             "FOR_COND" => {
                 process_for_cond(&r, &mut cond_stack, &mut for_cond_stack, &mut block_stack, &mut id_stack, &mut assign_stack, &mut expr_stack);
