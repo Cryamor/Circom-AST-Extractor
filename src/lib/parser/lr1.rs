@@ -37,7 +37,7 @@ pub struct LR1Parser {
     items: Vec<HashSet<LR1Item>>,
     action_table: HashMap<usize, HashMap<String, Action>>,
     goto_table: HashMap<usize, HashMap<String, usize>>,
-    productions: Vec<(String, Vec<String>)>,  // 索引化产生式
+    productions: Vec<(String, Vec<String>)>,                    // 索引化产生式
 }
 
 #[derive(Debug, Clone)]
@@ -107,6 +107,7 @@ impl LR1Parser {
 
         // 构建项目集规范族
         let items = Self::build_items(&augmented_grammar, &first);
+        info!("{}", Self::print_items(&items));
 
         // 构建分析表
         let (action_table, goto_table) = Self::build_parse_table(&augmented_grammar, &items, &first, &productions);
@@ -363,13 +364,14 @@ impl LR1Parser {
         lookaheads
     }
 
-    // GOTO计算
+    // GO计算
     fn goto(
         items: &HashSet<LR1Item>,
         symbol: &str,
         grammar: &Grammar,
         first: &HashMap<String, HashSet<String>>,
-    ) -> HashSet<LR1Item> {
+    ) -> HashSet<LR1Item>
+    {
         let mut goto_items = HashSet::new();
 
         // 遍历项目集中的每个项目
@@ -386,6 +388,48 @@ impl LR1Parser {
 
         // 计算闭包
         Self::closure(&goto_items, grammar, first)
+    }
+
+    fn print_items(items: &Vec<HashSet<LR1Item>>) -> String {
+        let mut s = String::new();
+        s += "\nItems:\n";
+        for (state_num, item_set) in items.iter().enumerate() {
+            s += &format!("State {}:\n", state_num);
+
+            // 将项目按产生式头部、体部、点位置和展望符排序以确保输出一致性
+            let mut sorted_items: Vec<_> = item_set.iter().collect();
+            sorted_items.sort_by(|a, b| {
+                a.head.cmp(&b.head)
+                    .then_with(|| a.body.cmp(&b.body))
+                    .then_with(|| a.dot_pos.cmp(&b.dot_pos))
+                    .then_with(|| a.lookahead.cmp(&b.lookahead))
+            });
+
+            for item in sorted_items {
+                // 分割产生式体为点前和点后部分
+                let before_dot = &item.body[..item.dot_pos];
+                let after_dot = &item.body[item.dot_pos..];
+
+                // 处理各部分生成字符串
+                let before_str = before_dot.join(" ");
+                let after_str = after_dot.join(" ");
+
+                let production = match (before_str.is_empty(), after_str.is_empty()) {
+                    (true, true) => ".".to_string(),          // 空产生式
+                    (true, false) => format!(". {}", after_str), // 点在最前
+                    (false, true) => format!("{} .", before_str), // 点在最后
+                    _ => format!("{} . {}", before_str, after_str), // 点在中间
+                };
+
+                // 拼接项目字符串
+                s += &format!(
+                    "  {} -> {}, lookahead: {}\n",
+                    item.head, production, item.lookahead
+                );
+            }
+        }
+
+        s
     }
 
     // 构建分析表
