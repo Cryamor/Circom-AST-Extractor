@@ -6,6 +6,24 @@
 - 语法分析器信息在程序第一次运行后缓存于`/cache/parser_cache.json`，在不改变文法规则的情况下无需再构建一遍
 - 默认文法规则为`grammar/grammar.txt`
 
+### Structure
+```bash
+.
+├─cache            # 语法分析器缓存
+├─grammar          # 文法规则文件
+├─logs             # 日志
+├─out              # 输出
+├─src              
+│  ├─bin           # main
+│  └─lib  
+│      ├─ast       # AST构建器
+│      ├─input     # 输入处理
+│      ├─lexer     # 词法分析器
+│      ├─output    # 输出处理
+│      └─parser    # 语法分析器
+└─testcase         # 测试样例  
+```
+
 ### Usage
 
 项目编译&运行：
