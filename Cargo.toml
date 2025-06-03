@@ -3,6 +3,10 @@ name = "Circom-AST-Extractor"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "Circom_AST_Extractor"
+path = "src/bin/main.rs"
+
 [lib]
 name = "lib"
 path = "src/lib/mod.rs"

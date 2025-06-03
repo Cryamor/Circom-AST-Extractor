@@ -1,8 +1,8 @@
 #!/bin/bash
 
-cp -f ./target/debug/main .
+cp -f ./target/debug/Circom_AST_Extractor .
 
 for i in {1..23}
 do
-    ./main "testcase/$i.circom"
+    ./Circom_AST_Extractor "testcase/$i.circom"
 done

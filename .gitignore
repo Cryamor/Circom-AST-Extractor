@@ -41,6 +41,4 @@ config.toml
 # 忽略目标文件夹（编译输出）
 /target/
 /out/
-main
-main.exe
 /cache/
